@@ -1,3 +1,5 @@
+/* rnd.c - version 1.0.2 */
+
 #define RND(x)	((rand()>>3) % x)
 
 rn1(x,y)
