@@ -1,6 +1,5 @@
-/*	SCCS Id: @(#)invent.c	1.4	87/08/08
+/*	SCCS Id: @(#)invent.c	2.1	87/10/19
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
-/* invent.c - version 1.0.3 */
 
 #include	<stdio.h>
 #include	"hack.h"
@@ -740,7 +739,10 @@ dotypeinv ()				/* free after Robert Viduya */
 #ifdef REDO
 	    savech(c);
 #endif
-	    if(index(quitchars,c)) return(0);
+	    if(index(quitchars,c)) {
+	    	    clrlin();
+	    	    return(0);
+	    }
 	} else
 	    c = stuff[0];
 
@@ -815,7 +817,7 @@ dolook() {
     }
     if(u.ux == xdnstair && u.uy == ydnstair)  {
 	fd++;
-	cornline(1, "There is a stairway down here.");
+	pline("There is a stairway down here.");
     }
     if(Blind)  {
 	 pline("You try to feel what is lying here on the floor.");
@@ -836,6 +838,7 @@ dolook() {
 	if(otmp->ox == u.ux && otmp->oy == u.uy) {
 	    ct++;
 	    cornline(1, doname(otmp));
+			
 	    if(Blind && otmp->otyp == DEAD_COCKATRICE && !uarmg) {
 		pline("Touching the dead cockatrice is a fatal mistake ...");
 		pline("You die ...");
@@ -1013,8 +1016,11 @@ char let;
 {
 	char *pos = index(obj_symbols, let);
 	extern char *HI, *HE;
-	/* buffer size is len(HI) + len(HE) + max(len(names[])) + 1 */
-	static char buf[4 + 4 + 15 + 1];
+	/* arbitrary buffer size by Tom May (tom@uw-warp) */
+	static char *buf = NULL;
+
+	if (buf == NULL)
+	    buf = (char *) alloc (strlen(HI) + strlen(HE) + 15 + 1);
 
 	if (pos == NULL) pos = obj_symbols;
 	if (HI && HE)
@@ -1024,3 +1030,13 @@ char let;
 	return (buf);
 }
 #endif /* SORTING /**/
+
+reassign ()
+{
+	register int i;
+	register struct obj *obj;
+
+	for(obj = invent, i = 0; obj; obj = obj->nobj, i++)
+		obj->invlet = (i < 26) ? ('a'+i) : ('A'+i-26);
+	lastinvnr = i;
+}
