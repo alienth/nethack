@@ -46,8 +46,8 @@
 			/* or X11 color	*/
 /* #define POSIX_JOB_CONTROL	/* use System V POSIX job control */
 /* #define POSIX_TYPES	/* use POSIX types for system calls and termios */
-			/* define for platforms using the GNU libraries */
-			/* linux, etc .. */
+                        /* define for platforms using the GNU libraries */
+                        /* linux, etc .. */
 
 /* #define OPENWINBUG	/* avoid a problem using OpenWindows 3.0 for X11
 			   on SunOS 4.1.x, x>= 2 */
