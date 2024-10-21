@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)artifact.c 3.3	2000/01/11	*/
+/*	SCCS Id: @(#)artifact.c 3.3	2001/11/17	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -23,13 +23,15 @@ extern boolean notonhead;	/* for long worms */
 STATIC_DCL int FDECL(spec_applies, (const struct artifact *,struct monst *));
 STATIC_DCL int FDECL(arti_invoke, (struct obj*));
 
-/* The amount added to normal damage which should guarantee that the
+/* The amount added to the victim's total hit points to insure that the
    victim will be killed even after damage bonus/penalty adjustments.
-   It needs to be big enough so that halving will still kill, but not
-   so big that doubling ends up overflowing 15 bits.  This value used
-   to be 1234, but it was possible for players to accumulate enough
-   hit points so that taking (uhp + 1234)/2 damage was survivable. */
-#define FATAL_DAMAGE 9999
+   Most such penalties are small, and 200 is plenty; the exception is
+   half physical damage.  3.3.2 and previous versions tried to use a very
+   large number to account for this case; now, we just compute the fatal
+   damage by adding it to 2 times the total hit points instead of 1 time.
+   Note: this will still break if they have more than about half the number
+   of hit points that will fit in a 15 bit integer. */
+#define FATAL_DAMAGE_MODIFIER 200
 
 #ifndef OVLB
 STATIC_DCL int spec_dbon_applies;
@@ -60,7 +62,7 @@ hack_artifacts()
 
 	/* Excalibur can be used by any lawful character, not just knights */
 	if (!Role_if(PM_KNIGHT))
-	    artilist[ART_EXCALIBUR].role = 0;		/****FIXME****/
+	    artilist[ART_EXCALIBUR].role = NON_PM;
 
 	/* Fix up the quest artifact */
 	if (urole.questarti) {
@@ -596,8 +598,11 @@ struct monst *mon;
 {
 	register const struct artifact *weap = get_artifact(otmp);
 
-	if (weap && spec_applies(weap, mon))
-	    return weap->attk.damn ? rnd((int)weap->attk.damn) : 0;
+	/* no need for an extra check for `NO_ATTK' because this will
+	   always return 0 for any artifact which has that attribute */
+
+	if (weap && weap->attk.damn && spec_applies(weap, mon))
+	    return rnd((int)weap->attk.damn);
 	return 0;
 }
 
@@ -610,7 +615,13 @@ int tmp;
 {
 	register const struct artifact *weap = get_artifact(otmp);
 
-	if ((spec_dbon_applies = (weap && spec_applies(weap, mon))) != 0)
+	if (!weap || (weap->attk.adtyp == AD_PHYS && /* check for `NO_ATTK' */
+			weap->attk.damn == 0 && weap->attk.damd == 0))
+	    spec_dbon_applies = FALSE;
+	else
+	    spec_dbon_applies = spec_applies(weap, mon);
+
+	if (spec_dbon_applies)
 	    return weap->attk.damd ? rnd((int)weap->attk.damd) : max(tmp,1);
 	return 0;
 }
@@ -697,7 +708,9 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 	boolean realizes_damage;
 
 	static const char you[] = "you";
-	const char *hittee = youdefend ? you : mon_nam(mdef);
+	char hittee[BUFSZ];
+
+	Strcpy(hittee, youdefend ? you : mon_nam(mdef));
 
 	/* The following takes care of most of the damage, but not all--
 	 * the exception being for level draining, which is specially
@@ -813,18 +826,7 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 				if (rn2(2) && resist(mdef,SPBOOK_CLASS,0,0)) {
 				    MB_RESIST_ATTACK;
 				} else {
-				    if (mdef == u.ustuck) {
-					if (u.uswallow)
-					    expels(mdef,mdef->data,TRUE);
-					else {
-					    if (!sticks(youmonst.data)) {
-						u.ustuck = (struct monst *)0;
-						You("get released!");
-					    }
-					}
-				    }
-				    mdef->mflee = 1;
-				    mdef->mfleetim += 3;
+				    monflee(mdef, 3, FALSE, TRUE);
 				}
 			}
 		}
@@ -929,7 +931,7 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 		/* not really beheading, but so close, why add another SPFX */
 		if (youattack && u.uswallow && mdef == u.ustuck) {
 		    You("slice %s wide open!", mon_nam(mdef));
-		    *dmgptr = mdef->mhp + FATAL_DAMAGE;
+		    *dmgptr = 2 * mdef->mhp + FATAL_DAMAGE_MODIFIER;
 		    return TRUE;
 		}
 		if (!youdefend) {
@@ -943,11 +945,11 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 						mon_nam(mdef));
 				else if (vis)
 					pline("%s cuts deeply into %s!",
-					      Monnam(magr), mon_nam(mdef));
+					      Monnam(magr), hittee);
 				*dmgptr *= 2;
 				return TRUE;
 			}
-			*dmgptr = mdef->mhp + FATAL_DAMAGE;
+			*dmgptr = 2 * mdef->mhp + FATAL_DAMAGE_MODIFIER;
 			pline_The("razor-sharp blade cuts %s in half!",
 			      mon_nam(mdef));
 			otmp->dknown = TRUE;
@@ -965,7 +967,7 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 			 * value to the damage so that this reduction in
 			 * damage does not prevent death.
 			 */
-			*dmgptr = (Upolyd ? u.mh : u.uhp) + FATAL_DAMAGE;
+			*dmgptr = 2 * (Upolyd ? u.mh : u.uhp) + FATAL_DAMAGE_MODIFIER;
 			pline_The("razor-sharp blade cuts you in half!");
 			otmp->dknown = TRUE;
 			return TRUE;
@@ -996,7 +998,7 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 				      s_suffix(mon_nam(mdef)), mbodypart(mdef,NECK));
 				return TRUE;
 			}
-			*dmgptr = mdef->mhp + FATAL_DAMAGE;
+			*dmgptr = 2 * mdef->mhp + FATAL_DAMAGE_MODIFIER;
 			pline(behead_msg[rn2(SIZE(behead_msg))],
 			      artilist[ART_VORPAL_BLADE].name,
 			      mon_nam(mdef));
@@ -1014,7 +1016,7 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 				      artilist[ART_VORPAL_BLADE].name, body_part(NECK));
 				return TRUE;
 			}
-			*dmgptr = (Upolyd ? u.mh : u.uhp) + FATAL_DAMAGE;
+			*dmgptr = 2 * (Upolyd ? u.mh : u.uhp) + FATAL_DAMAGE_MODIFIER;
 			pline(behead_msg[rn2(SIZE(behead_msg))],
 			      artilist[ART_VORPAL_BLADE].name, "you");
 			otmp->dknown = TRUE;
@@ -1036,7 +1038,7 @@ int dieroll; /* needed for Magicbane and vorpal blades */
 				      mon_nam(mdef));
 			}
 			if (mdef->m_lev == 0) {
-			    *dmgptr = mdef->mhp + FATAL_DAMAGE;
+			    *dmgptr = 2 * mdef->mhp + FATAL_DAMAGE_MODIFIER;
 			} else {
 			    int drain = rnd(8);
 			    *dmgptr += drain;
@@ -1111,17 +1113,19 @@ arti_invoke(obj)
 
 	switch(oart->inv_prop) {
 	case TAMING: {
-	    struct obj *pseudo = mksobj(SPE_CHARM_MONSTER, FALSE, FALSE);
-	    pseudo->blessed = pseudo->cursed = 0;
-	    pseudo->quan = 20L;			/* do not let useup get it */
-	    (void) seffects(pseudo);
-	    obfree(pseudo, (struct obj *)0);	/* now, get rid of it */
+	    struct obj pseudo;
+
+	    pseudo = zeroobj;	/* neither cursed nor blessed */
+	    pseudo.otyp = SCR_TAMING;
+	    (void) seffects(&pseudo);
 	    break;
 	  }
 	case HEALING: {
 	    int healamt = (u.uhpmax + 1 - u.uhp) / 2;
+	    long creamed = (long)u.ucreamed;
+
 	    if (Upolyd) healamt = (u.mhmax + 1 - u.mh) / 2;
-	    if(healamt || Sick || (Blinded > 1))
+	    if (healamt || Sick || Blinded > creamed)
 		You_feel("better.");
 	    else
 		goto nothing_special;
@@ -1131,7 +1135,7 @@ arti_invoke(obj)
 	    }
 	    if(Sick) make_sick(0L,(char *)0,FALSE,SICK_ALL);
 	    if(Slimed) Slimed = 0L;
-	    if(Blinded > 1) make_blinded(0L,FALSE);
+	    if (Blinded > creamed) make_blinded(creamed, FALSE);
 	    flags.botl = 1;
 	    break;
 	  }
@@ -1276,8 +1280,10 @@ nothing_special:
 	    else You_feel("the tension decrease around you.");
 	    break;
 	case LEVITATION:
-	    if(on) float_up();
-	    else (void) float_down(I_SPECIAL|TIMEOUT, W_ARTI);
+	    if(on) {
+		float_up();
+		spoteffects(FALSE);
+	    } else (void) float_down(I_SPECIAL|TIMEOUT, W_ARTI);
 	    break;
 	case INVIS:
 	    if (!See_invisible && !Blind) {
@@ -1296,6 +1302,14 @@ nothing_special:
     return 1;
 }
 
+
+/* WAC return TRUE if artifact is always lit */
+boolean
+artifact_light(obj)
+    struct obj *obj;
+{
+    return (get_artifact(obj) && obj->oartifact == ART_SUNSWORD);
+}
 
 /* KMH -- Talking artifacts are finally implemented */
 void arti_speak(obj)

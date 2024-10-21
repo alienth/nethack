@@ -82,6 +82,7 @@
 #endif
 
 #ifdef QT_GRAPHICS
+# define USER_SOUNDS		/* Use sounds */
 # define USE_XPM		/* Use XPM format for images (required) */
 # define GRAPHIC_TOMBSTONE	/* Use graphical tombstone (rip.ppm) */
 # ifndef DEFAULT_WINDOW_SYS
@@ -296,6 +297,8 @@ typedef unsigned char	uchar;
  * If you define the following flags, you will add not only to the
  * complexity of the game but also to the size of the load module.
  */
+
+/*#define GOLDOBJ */	/* Gold is kept on obj chains - Helge Hafting */
 
 /* dungeon features */
 #define SINKS		/* Kitchen sinks - Janet Walz */

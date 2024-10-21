@@ -22,11 +22,11 @@ static const char *developers[] = {
 	"Bill", "Eric", "Keizo", "Ken", "Kevin", "Michael", "Mike", "Paul",
 	"Stephen", "Steve", "Timo", "Yitzhak",
 	/* Amiga team */
-	"Andy", "Gregg", "Keni", "Mike", "Olaf", "Richard",
+	"Andy", "Gregg", "Janne", "Keni", "Mike", "Olaf", "Richard",
 	/* Mac team */
 	"Andy", "Chris", "Dean", "Jon", "Jonathan", "Kevin", "Wang",
 	/* Atari team */
-	"Eric", "Warwick",
+	"Eric", "Marvin", "Warwick",
 	/* NT team */
 	"Michael",
 	/* OS/2 team */
@@ -255,7 +255,11 @@ register boolean special;
 		    (void)mongets(mtmp, rnd_class(DILITHIUM_CRYSTAL, JADE));
 		/* To get the gold "right" would mean a player can double his */
 		/* gold supply by killing one mplayer.  Not good. */
+#ifndef GOLDOBJ
 		mtmp->mgold = rn2(1000);
+#else
+		mkmonmoney(mtmp, rn2(1000));
+#endif
 		quan = rn2(10);
 		while(quan--)
 		    (void) mpickobj(mtmp, mkobj(RANDOM_CLASS, FALSE));

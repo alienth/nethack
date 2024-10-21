@@ -48,6 +48,10 @@
 
 #include <sys/types.h>
 #include <stdlib.h>
+#ifdef __BORLANDC__
+#undef randomize
+#undef random
+#endif
 
 #define NO_SIGNAL
 #define index	strchr
@@ -85,8 +89,18 @@
 #endif
 
 #include <fcntl.h>
+#ifndef __BORLANDC__
 #include <io.h>
 #include <direct.h>
+#else
+int  _RTLENTRY _EXPFUNC _chdrive(int __drive);
+int  _RTLENTRYF _EXPFUNC32   chdir( const char _FAR *__path );
+char _FAR * _RTLENTRY  _EXPFUNC     getcwd( char _FAR *__buf, int __buflen );
+int  _RTLENTRY _EXPFUNC write (int __handle, const void _FAR *__buf, unsigned __len);
+int  _RTLENTRY _EXPFUNC creat   (const char _FAR *__path, int __amode);
+int  _RTLENTRY _EXPFUNC close   (int __handle);
+int  _RTLENTRY _EXPFUNC open  (const char _FAR *__path, int __access,... /*unsigned mode*/);
+#endif
 #include <conio.h>
 #undef kbhit		/* Use our special NT kbhit */
 #define kbhit (*nt_kbhit)

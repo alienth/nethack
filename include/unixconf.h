@@ -304,7 +304,7 @@
 #endif
 
 #ifdef TIMED_DELAY
-# if defined(SUNOS4) || defined(LINUX)
+# if defined(SUNOS4) || defined(LINUX) || (defined(BSD) && !defined(ULTRIX))
 # define msleep(k) usleep((k)*1000)
 # endif
 # ifdef ULTRIX
@@ -319,6 +319,29 @@
 # define __HC__ hc
 # undef hc
 #endif
+
+#if defined(GNOME_GRAPHICS)
+#if defined(LINUX)
+# include <linux/unistd.h>
+# if defined(__NR_getresuid) && defined(__NR_getresgid)	/* ie., >= v2.1.44 */
+#  define GETRES_SUPPORT
+# endif
+#else
+# if defined(BSD) || defined(SVR4)
+/*
+ * [ALI] We assume that SVR4 means we can safely include syscall.h
+ * (although it's really a BSDism). This is certainly true for Solaris 2.5,
+ * Solaris 7, Solaris 8 and Compaq Tru64 5.1
+ * Later BSD systems will have the getresid system calls.
+ */
+# include <sys/syscall.h>
+# if (defined (SYS_getuid) || defined(SYS_getresuid)) && \
+  (defined(SYS_getgid) || defined(SYS_getresgid))
+#  define GETRES_SUPPORT
+# endif
+# endif	/* BSD || SVR4 */
+#endif /* LINUX */
+#endif	/* GNOME_GRAPHICS */
 
 #endif /* UNIXCONF_H */
 #endif /* UNIX */

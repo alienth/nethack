@@ -145,7 +145,7 @@ ENDMAP
 # Dungeon Description
 REGION:(00,00,75,19),lit,"ordinary"
 REGION:(25,04,28,07),lit,"temple"
-REGION:(25,09,28,11),unlit,"ordinary"
+REGION:(25,09,28,11),unlit,"temple"
 REGION:(25,13,28,16),lit,"temple"
 REGION:(30,04,30,16),lit,"ordinary"
 REGION:(32,04,32,16),unlit,"ordinary"

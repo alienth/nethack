@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)bones.c	3.3	2000/05/28	*/
+/*	SCCS Id: @(#)bones.c	3.3	2001/04/12	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985,1993. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -129,8 +129,8 @@ struct obj *cont;
 
 		otmp->owornmask = 0;
 		/* lamps don't go out when dropped */
-		if (cont && obj_is_burning(otmp))	/* smother in statue */
-			end_burn(otmp, otmp->otyp != MAGIC_LAMP);
+		if ((cont || artifact_light(otmp)) && obj_is_burning(otmp))	/* smother in statue */
+			end_burn(otmp, otmp->otyp != MAGIC_LAMP && !artifact_light(otmp));
 
 		if(otmp->otyp == SLIME_MOLD) goodfruit(otmp->spe);
 
@@ -138,17 +138,20 @@ struct obj *cont;
 		if (mtmp)
 			(void) add_to_minv(mtmp, otmp);
 		else if (cont)
-			add_to_container(cont, otmp);
+			(void) add_to_container(cont, otmp);
 		else
 			place_object(otmp, u.ux, u.uy);
 	}
+#ifndef GOLDOBJ
 	if(u.ugold) {
 		long ugold = u.ugold;
 		if (mtmp) mtmp->mgold = ugold;
-		else if (cont) add_to_container(cont, mkgoldobj(ugold));
+		else if (cont) (void) add_to_container(cont, mkgoldobj(ugold));
 		else (void)mkgold(ugold, u.ux, u.uy);
 		u.ugold = ugold;	/* undo mkgoldobj()'s removal */
 	}
+#endif
+	if (cont) cont->owt = weight(cont);
 }
 
 /* check whether bones are feasible */
@@ -220,14 +223,7 @@ struct obj *corpse;
 		mongone(mtmp);
 	}
 #ifdef STEED
-	if (u.usteed) {
-	    coord cc;
-
-	    /* Move the steed to an adjacent square */
-	    if (enexto(&cc, u.ux, u.uy, u.usteed->data))
-		rloc_to(u.usteed, cc.x, cc.y);
-	    u.usteed = 0;
-	}
+	if (u.usteed) dismount_steed(DISMOUNT_BONES);
 #endif
 	dmonsfree();		/* discard dead or gone monsters */
 

@@ -90,7 +90,6 @@ OpenTileFile(tilefilename, filestyle)
 char *tilefilename;
 boolean filestyle;
 {
-	FILE *x;
 #ifdef TILES_IN_RAM
 	int k;
 #endif

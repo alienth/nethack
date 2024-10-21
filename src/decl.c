@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)decl.c	3.3	99/05/07	*/
+/*	SCCS Id: @(#)decl.c	3.2	2001/12/10	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -97,6 +97,10 @@ const schar zdir[10] = {  0, 0, 0, 0, 0, 0, 0, 0, 1,-1 };
 
 NEARDATA schar tbx = 0, tby = 0;	/* mthrowu: target */
 
+/* for xname handling of multiple shot missile volleys:
+   number of shots, index of current one, validity check, shoot vs throw */
+NEARDATA struct multishot m_shot = { 0, 0, STRANGE_OBJECT, FALSE };
+
 NEARDATA struct dig_info digging;
 
 NEARDATA dungeon dungeons[MAXDUNGEON];	/* ini'ed by init_dungeon() */
@@ -184,11 +188,6 @@ NEARDATA struct obj *billobjs = (struct obj *)0;
 /* used to zero all elements of a struct obj */
 NEARDATA struct obj zeroobj = DUMMY;
 
-/* monster pronouns, index is return value of gender(mtmp) */
-const char *he[3]  = { "he",  "she", "it" };
-const char *him[3] = { "him", "her", "it" };
-const char *his[3] = { "his", "her", "its" };
-
 /* originally from dog.c */
 NEARDATA char dogname[PL_PSIZ] = DUMMY;
 NEARDATA char catname[PL_PSIZ] = DUMMY;
@@ -211,7 +210,8 @@ NEARDATA struct c_color_names c_color_names = {
 struct c_common_strings c_common_strings = {
 	"Nothing happens.",		"That's enough tries!",
 	"That is a silly thing to %s.",	"shudder for a moment.",
-	"something", "Something", "You can move again.", "Never mind."
+	"something", "Something", "You can move again.", "Never mind.",
+	"vision quickly clears."
 };
 
 /* NOTE: the order of these words exactly corresponds to the

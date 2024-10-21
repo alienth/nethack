@@ -65,6 +65,7 @@ struct obj {
 #define MAX_ERODE 3
 #define orotten oeroded		/* rotten food */
 #define odiluted oeroded	/* diluted potions */
+#define norevive oeroded2
 	Bitfield(oerodeproof,1); /* erodeproof weapon/armor */
 	Bitfield(olocked,1);	/* object is locked */
 	Bitfield(obroken,1);	/* lock has been broken */
@@ -84,7 +85,8 @@ struct obj {
 #define OATTACHED_UNUSED3 3
 
 	Bitfield(in_use,1);	/* for magic items before useup items */
-	/* 7 free bits */
+	Bitfield(bypass,1);	/* mark this as an object to be skipped by bhito() */
+	/* 6 free bits */
 
 	int	corpsenm;	/* type of corpse is mons[corpsenm] */
 #define leashmon  corpsenm	/* gets m_id of attached pet */

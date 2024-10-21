@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)rip.c	3.3	97/11/08	*/
+/*	SCCS Id: @(#)rip.c	3.3	2001/09/24	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -108,7 +108,14 @@ int how;
 	center(NAME_LINE, buf);
 
 	/* Put $ on stone */
+#ifndef GOLDOBJ
 	Sprintf(buf, "%ld Au", u.ugold);
+#else
+	/* FIXME: this neglects gold in containers (which will be gone by
+	   now if bones have been saved).  For the !GOLDOBJ configuration,
+	   any such gold gets added into u.ugold by done(). */
+	Sprintf(buf, "%ld Au", money_cnt(invent));
+#endif
 	buf[STONE_LINE_LEN] = 0; /* It could be a *lot* of gold :-) */
 	center(GOLD_LINE, buf);
 

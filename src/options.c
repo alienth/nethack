@@ -91,11 +91,7 @@ static struct Bool_Opt
 	{"flush", (boolean *)0, FALSE},
 #endif
 	{"help", &flags.help, TRUE},
-#ifdef TEXTCOLOR
 	{"hilite_pet", &iflags.hilite_pet, FALSE},
-#else
-	{"hilite_pet", (boolean *)0, FALSE},
-#endif
 #ifdef ASCIIGRAPH
 	{"IBMgraphics", &iflags.IBMgraphics, FALSE},
 #else
@@ -169,6 +165,7 @@ static struct Bool_Opt
 	{"silent", &flags.silent, TRUE},
 	{"sortpack", &flags.sortpack, TRUE},
 	{"sound", &flags.soundok, TRUE},
+	{"sparkle", &flags.sparkle, TRUE},
 	{"standout", &flags.standout, FALSE},
 	{"time", &flags.time, FALSE},
 #ifdef TIMED_DELAY
@@ -178,6 +175,7 @@ static struct Bool_Opt
 #endif
 	{"tombstone",&flags.tombstone, TRUE},
 	{"toptenwin",&flags.toptenwin, FALSE},
+	{"use_inverse", &iflags.use_inverse, FALSE},
 	{"verbose", &flags.verbose, TRUE},
 	{(char *)0, (boolean *)0, FALSE}
 };
@@ -205,6 +203,8 @@ static struct Comp_Opt
 	{ "background", "the color of the background (black or white)",
 						6, SET_IN_FILE },
 #endif
+	{ "boulder",  "the symbol to use for displaying boulders",
+						1, SET_IN_GAME },
 	{ "catname",  "the name of your (first) cat (e.g., catname:Tabby)",
 						PL_PSIZ, DISP_IN_GAME },
 	{ "disclose", "the kinds of information to disclose at end of game",
@@ -297,7 +297,7 @@ static struct Comp_Opt
 	{ "warnlevel", "minimum monster level to trigger warning", 4, SET_IN_GAME },
 #endif
 	{ "windowtype", "windowing system to use", WINTYPELEN, DISP_IN_GAME },
-	{ (char *)0, (char *)0, 0 }
+	{ (char *)0, (char *)0, 0, 0 }
 };
 
 #ifdef OPTION_LISTS_ONLY
@@ -399,6 +399,7 @@ STATIC_DCL void FDECL(warning_opts, (char *,const char *));
 #if 0
 STATIC_DCL int FDECL(warnlevel_opts, (char *, const char *));
 #endif
+STATIC_DCL void FDECL(duplicate_opt_detection, (const char *, int));
 
 /* check whether a user-supplied option string is a proper leading
    substring of a particular option name; option string might have
@@ -451,6 +452,9 @@ initoptions()
 	/* initialize the random number generator */
 	setrandom();
 
+	/* for detection of configfile options specified multiple times */
+	iflags.opt_booldup = iflags.opt_compdup = (int *)0;
+	
 	for (i = 0; boolopt[i].name; i++) {
 		if (boolopt[i].addr)
 			*(boolopt[i].addr) = boolopt[i].initvalue;
@@ -474,6 +478,7 @@ initoptions()
 		monsyms[i] = (uchar) def_monsyms[i];
 	for (i = 0; i < WARNCOUNT; i++)
 		warnsyms[i] = def_warnsyms[i].sym;
+	iflags.bouldersym = 0;
 	flags.warnlevel = 1;
 	flags.warntype = 0L;
 
@@ -537,9 +542,7 @@ initoptions()
 	} else
 #endif
 		read_config_file((char *)0);
-#ifdef AMIGA
-	ami_wbench_init();	/* must be here or can't set fruit */
-#endif
+
 	(void)fruitadd(pl_fruit);
 	/* Remove "slime mold" from list of object names; this will	*/
 	/* prevent it from being wished unless it's actually present	*/
@@ -650,13 +653,7 @@ rejectoption(optname)
 const char *optname;
 {
 #ifdef MICRO
-# ifdef AMIGA
-	if(FromWBench){
-		pline("\"%s\" settable only from %s or in icon.",
-			optname, configfile);
-	} else
-# endif
-		pline("\"%s\" settable only from %s.", optname, configfile);
+	pline("\"%s\" settable only from %s.", optname, configfile);
 #else
 	pline("%s can be set only from NETHACKOPTIONS or %s.", optname,
 			configfile);
@@ -678,16 +675,11 @@ const char *opts;
 	else return;
 #endif
 
-# ifdef AMIGA
-	if(ami_wbench_badopt(opts)) {
-# endif
 	if(from_file)
 	    raw_printf("Bad syntax in OPTIONS in %s: %s.", configfile, opts);
 	else
 	    raw_printf("Bad syntax in NETHACKOPTIONS: %s.", opts);
-# ifdef AMIGA
-	}
-# endif
+
 	wait_synch();
 }
 
@@ -749,8 +741,12 @@ char *op;
     char *sp, buf[BUFSZ];
 
     num = 0;
+#ifndef GOLDOBJ
     if (!index(op, GOLD_SYM))
 	buf[num++] = GOLD_CLASS;
+#else
+    /*  !!!! probably unnecessary with gold as normal inventory */
+#endif
 
     for (sp = op; *sp; sp++) {
 	oc_sym = def_char_to_objclass(*sp);
@@ -902,6 +898,77 @@ const char *optn;
 }
 
 void
+set_duplicate_opt_detection(on_or_off)
+int on_or_off;
+{
+	int k, *optptr;
+	if (on_or_off != 0) {
+		/*-- ON --*/
+		if (iflags.opt_booldup)
+			impossible("iflags.opt_booldup already on (memory leak)");
+		iflags.opt_booldup = (int *)alloc(SIZE(boolopt) * sizeof(int));
+		optptr = iflags.opt_booldup;
+		for (k = 0; k < SIZE(boolopt); ++k)
+			*optptr++ = 0;
+			
+		if (iflags.opt_compdup)
+			impossible("iflags.opt_compdup already on (memory leak)");
+		iflags.opt_compdup = (int *)alloc(SIZE(compopt) * sizeof(int));
+		optptr = iflags.opt_compdup;
+		for (k = 0; k < SIZE(compopt); ++k)
+			*optptr++ = 0;
+	} else {
+		/*-- OFF --*/
+		if (iflags.opt_booldup) free((genericptr_t) iflags.opt_booldup);
+		iflags.opt_booldup = (int *)0;
+		if (iflags.opt_compdup) free((genericptr_t) iflags.opt_compdup);
+		iflags.opt_compdup = (int *)0;
+	} 
+}
+
+STATIC_OVL void
+duplicate_opt_detection(opts, bool_or_comp)
+const char *opts;
+int bool_or_comp;	/* 0 == boolean option, 1 == compound */
+{
+	int i, *optptr;
+#if defined(MAC)
+	/* the Mac has trouble dealing with the output of messages while
+	 * processing the config file.  That should get fixed one day.
+	 * For now just return.
+	 */
+	return;
+#endif
+	if ((bool_or_comp == 0) && iflags.opt_booldup && initial && from_file) {
+	    for (i = 0; boolopt[i].name; i++) {
+		if (match_optname(opts, boolopt[i].name, 3, FALSE)) {
+			optptr = iflags.opt_booldup + i;
+			if (*optptr == 1) {
+			    raw_printf(
+				"\nWarning - Boolean option specified multiple times: %s.\n",
+					opts);
+			        wait_synch();
+			}
+			*optptr += 1;
+		}
+	    }
+	} else if ((bool_or_comp == 1) && iflags.opt_compdup && initial && from_file) {
+	    for (i = 0; compopt[i].name; i++) {
+		if (match_optname(opts, compopt[i].name, strlen(compopt[i].name), TRUE)) {
+			optptr = iflags.opt_compdup + i;
+			if (*optptr == 1) {
+			    raw_printf(
+				"\nWarning - compound option specified multiple times: %s.\n",
+					compopt[i].name);
+			        wait_synch();
+			}
+			*optptr += 1;
+		}
+	    }
+	}
+}
+
+void
 parseoptions(opts, tinitial, tfrom_file)
 register char *opts;
 boolean tinitial, tfrom_file;
@@ -939,6 +1006,8 @@ boolean tinitial, tfrom_file;
 
 	if (match_optname(opts, "colour", 5, FALSE))
 		Strcpy(opts, "color");	/* fortunately this isn't longer */
+
+	duplicate_opt_detection(opts, 1);	/* 1 means compound opts */
 
 	/* special boolean options */
 
@@ -1275,6 +1344,26 @@ goodfruit:
 	    return;
 	}
 #endif
+	/* boulder:symbol */
+	fullname = "boulder";
+	if (match_optname(opts, fullname, 7, TRUE)) {
+		if (negated) {
+		    bad_negation(fullname, FALSE);
+		    return;
+		}
+/*		if (!(opts = string_for_env_opt(fullname, opts, FALSE))) */
+		if (!(opts = string_for_opt(opts, FALSE)))
+			return;
+		escapes(opts, opts);
+
+		/*
+		 * Override the default boulder symbol.
+		 */
+		iflags.bouldersym = (uchar) opts[0];
+		if (!initial) need_redraw = TRUE;
+		return;
+	}
+
 	/* name:string */
 	fullname = "name";
 	if (match_optname(opts, fullname, 4, TRUE)) {
@@ -1359,19 +1448,19 @@ goodfruit:
 				case 'u':
 					flags.pickup_burden = UNENCUMBERED;
 					break;
-				/* Burdened (slight encumberance) */
+				/* Burdened (slight encumbrance) */
 				case 'b':
 					flags.pickup_burden = SLT_ENCUMBER;
 					break;
-				/* streSsed (moderate encumberance) */
+				/* streSsed (moderate encumbrance) */
 				case 's':
 					flags.pickup_burden = MOD_ENCUMBER;
 					break;
-				/* straiNed (heavy encumberance) */
+				/* straiNed (heavy encumbrance) */
 				case 'n':
 					flags.pickup_burden = HVY_ENCUMBER;
 					break;
-				/* OverTaxed (extreme encumberance) */
+				/* OverTaxed (extreme encumbrance) */
 				case 'o':
 				case 't':
 					flags.pickup_burden = EXT_ENCUMBER;
@@ -1688,6 +1777,8 @@ goodfruit:
 
 			*(boolopt[i].addr) = !negated;
 
+			duplicate_opt_detection(boolopt[i].name, 0);
+
 #if defined(TERMLIB) || defined(ASCIIGRAPH) || defined(MAC_GRAPHICS_ENV)
 			if (FALSE
 # ifdef TERMLIB
@@ -1763,10 +1854,14 @@ goodfruit:
 			    vision_recalc(2);		/* shut down vision */
 			    vision_full_recalc = 1;	/* delayed recalc */
 			}
-
+			else if ((boolopt[i].addr) == &iflags.use_inverse) {
+			    need_redraw = TRUE;
+			}
+			else if ((boolopt[i].addr) == &iflags.hilite_pet) {
+			    need_redraw = TRUE;
+			}
 #ifdef TEXTCOLOR
-			else if ((boolopt[i].addr) == &iflags.use_color
-			      || (boolopt[i].addr) == &iflags.hilite_pet) {
+			else if ((boolopt[i].addr) == &iflags.use_color) {
 			    need_redraw = TRUE;
 # ifdef TOS
 			    if ((boolopt[i].addr) == &iflags.use_color
@@ -2064,7 +2159,7 @@ boolean setinitial,setfromfile;
 		add_menu(tmpwin, NO_GLYPH, &any, burden_letters[i], 0,
 			 ATR_NONE, burden_name, MENU_UNSELECTED);
         }
-	end_menu(tmpwin, "Select encumberence level:");
+	end_menu(tmpwin, "Select encumbrance level:");
 	if (select_menu(tmpwin, PICK_ONE, &burden_pick) > 0) {
 		flags.pickup_burden = burden_pick->item.a_int - 1;
 		free((genericptr_t)burden_pick);
@@ -2099,6 +2194,9 @@ char *buf;
 	buf[0] = '\0';
 	if (!strcmp(optname,"align"))
 		Sprintf(buf, "%s", rolestring(flags.initalign, aligns, adj));
+	else if (!strcmp(optname, "boulder"))
+		Sprintf(buf, "%c", iflags.bouldersym ?
+			iflags.bouldersym : oc_syms[(int)objects[BOULDER].oc_class]);
 	else if (!strcmp(optname, "catname")) 
 		Sprintf(buf, "%s", catname[0] ? catname : none );
 	else if (!strcmp(optname, "disclose")) 
@@ -2273,12 +2371,7 @@ option_help()
     winid datawin;
 
     datawin = create_nhwindow(NHW_TEXT);
-#ifdef AMIGA
-    if (FromWBench)
-	Sprintf(buf, "Set options as OPTIONS= in %s or in icon", configfile);
-    else
-#endif
-	Sprintf(buf, "Set options as OPTIONS=<options> in %s", configfile);
+    Sprintf(buf, "Set options as OPTIONS=<options> in %s", configfile);
     opt_intro[CONFIG_SLOT] = (const char *) buf;
     for (i = 0; opt_intro[i]; i++)
 	putstr(datawin, 0, opt_intro[i]);

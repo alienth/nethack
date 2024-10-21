@@ -213,6 +213,9 @@ static void process_options(int argc, char **argv)
 			    	flags.initrace = i;
 			}
 			break;
+		case '@':
+			flags.randomall = 1;
+			break;
 		default:
 			raw_printf("Unknown option: %s", *argv);
 			break;

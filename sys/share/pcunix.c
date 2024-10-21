@@ -21,7 +21,10 @@ extern void NDECL(clear_screen);
 
 #ifdef OVLB
 
+#if 0
 static struct stat buf;
+#endif
+
 # ifdef WANT_GETHDATE
 static struct stat hbuf;
 # endif
@@ -31,13 +34,14 @@ gethdate(name)
 char *name;
 {
 # ifdef WANT_GETHDATE
+#if 0
 /* old version - for people short of space */
-/*
-/* register char *np;
-/*      if(stat(name, &hbuf))
-/*	      error("Cannot get status of %s.",
-/*		      (np = rindex(name, '/')) ? np+1 : name);
-/*
+
+register char *np;
+      if(stat(name, &hbuf))
+	      error("Cannot get status of %s.",
+		      (np = rindex(name, '/')) ? np+1 : name);
+#endif
 /* version using PATH from: seismo!gregc@ucsf-cgl.ARPA (Greg Couch) */
 
 /*
@@ -144,11 +148,11 @@ eraseoldlocks()
 void
 getlock()
 {
-	register int i = 0, fd, c, ci, ct;
+	register int fd, c, ci, ct;
 	char tbuf[BUFSZ];
 	const char *fq_lock;
 # if defined(MSDOS) && defined(NO_TERMS)
-	int grmode;
+	int grmode = iflags.grmode;
 # endif
 	
 	/* we ignore QUIT and INT at this point */

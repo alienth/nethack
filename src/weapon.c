@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)weapon.c	3.3	2000/01/22	*/
+/*	SCCS Id: @(#)weapon.c	3.3	2000/09/17	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -181,6 +181,7 @@ struct monst *mon;
  * Second edition AD&D came out a few years later; luckily it used the same
  * table.  As of this writing (1999), third edition is in progress but not
  * released.  Let's see if the weapon table stays the same.  --KAA
+ * October 2000: It didn't.  Oh, well.
  */
 
 /*
@@ -507,12 +508,15 @@ register struct monst *mtmp;
 	/* only strong monsters can wield big (esp. long) weapons */
 	/* big weapon is basically the same as bimanual */
 	/* all monsters can wield the remaining weapons */
-	for (i = 0; i < SIZE(hwep); i++)
+	for (i = 0; i < SIZE(hwep); i++) {
+	    if (hwep[i] == CORPSE && !(mtmp->misc_worn_check & W_ARMG))
+		continue;
 	    if (((strong && !wearing_shield)
 			|| !objects[hwep[i]].oc_bimanual) &&
 		    (objects[hwep[i]].oc_material != SILVER
 			|| !hates_silver(mtmp->data)))
 		Oselect(hwep[i]);
+	}
 
 	/* failure */
 	return (struct obj *)0;
@@ -538,7 +542,7 @@ register struct monst *mon;
 		return;
 	}
 	if (!attacktype(mon->data, AT_WEAP)) {
-		mw_tmp->owornmask &= ~W_WEP;
+		setmnotwielded(mon, mw_tmp);
 		MON_NOWEP(mon);
 		mon->weapon_check = NO_WEAPON_WANTED;
 		obj_extract_self(obj);
@@ -565,7 +569,8 @@ register struct monst *mon;
 	 * polymorphed into little monster.  But it's not quite clear how to
 	 * handle this anyway....
 	 */
-	mon->weapon_check = NEED_WEAPON;
+	if (!(mw_tmp->cursed && mon->weapon_check == NO_WEAPON_WANTED))
+	    mon->weapon_check = NEED_WEAPON;
 }
 
 /* Let a monster try to wield a weapon, based on mon->weapon_check.
@@ -616,7 +621,7 @@ register struct monst *mon;
 			if (bimanual(mw_tmp)) mon_hand = makeplural(mon_hand);
 			Sprintf(welded_buf, "%s welded to %s %s",
 				(mw_tmp->quan == 1L) ? "is" : "are",
-				his[pronoun_gender(mon)], mon_hand);
+				mhis(mon), mon_hand);
 
 			if (obj->otyp == PICK_AXE) {
 			    pline("Since %s weapon%s %s,",
@@ -637,18 +642,25 @@ register struct monst *mon;
 		    return 1;
 		}
 		mon->mw = obj;		/* wield obj */
-		if (mw_tmp) mw_tmp->owornmask &= ~W_WEP;
+		setmnotwielded(mon, mw_tmp);
 		mon->weapon_check = NEED_WEAPON;
 		if (canseemon(mon)) {
-			pline("%s wields %s!", Monnam(mon), doname(obj));
-			if (obj->cursed && obj->otyp != CORPSE) {
-				pline("%s %s to %s %s!",
-					The(xname(obj)),
-					(obj->quan == 1L) ? "welds itself"
-					    : "weld themselves",
-					s_suffix(mon_nam(mon)), mbodypart(mon,HAND));
-				obj->bknown = 1;
-			}
+		    pline("%s wields %s!", Monnam(mon), doname(obj));
+		    if (obj->cursed && obj->otyp != CORPSE) {
+			pline("%s %s to %s %s!",
+			    The(xname(obj)),
+			    (obj->quan == 1L) ? "welds itself"
+				: "weld themselves",
+			    s_suffix(mon_nam(mon)), mbodypart(mon,HAND));
+			obj->bknown = 1;
+		    }
+		}
+		if (artifact_light(obj) && !obj->lamplit) {
+		    begin_burn(obj, FALSE);
+		    if (canseemon(mon))
+			pline("%s glows brilliantly in %s %s!",
+			    The(xname(obj)), 
+			    s_suffix(mon_nam(mon)), mbodypart(mon,HAND));
 		}
 		obj->owornmask = W_WEP;
 		return 1;
@@ -991,10 +1003,13 @@ int
 weapon_hit_bonus(weapon)
 struct obj *weapon;
 {
-    int type, skill, bonus = 0;
+    int type, wep_type, skill, bonus = 0;
     static const char bad_skill[] = "weapon_hit_bonus: bad skill %d";
 
-    type = u.twoweap ? P_TWO_WEAPON_COMBAT : weapon_type(weapon);
+    wep_type = weapon_type(weapon);
+    /* use two weapon skill only if attacking with one of the wielded weapons */
+    type = (u.twoweap && (weapon == uwep || weapon == uswapwep)) ?
+	    P_TWO_WEAPON_COMBAT : wep_type;
     if (type == P_NONE) {
 	bonus = 0;
     } else if (type <= P_LAST_WEAPON) {
@@ -1008,9 +1023,9 @@ struct obj *weapon;
 	}
     } else if (type == P_TWO_WEAPON_COMBAT) {
 	skill = P_SKILL(P_TWO_WEAPON_COMBAT);
-	if (P_SKILL(weapon->otyp) < skill) skill = P_SKILL(weapon->otyp);
+	if (P_SKILL(wep_type) < skill) skill = P_SKILL(wep_type);
 	switch (skill) {
-	    default: impossible(bad_skill, P_SKILL(type)); /* fall through */
+	    default: impossible(bad_skill, skill); /* fall through */
 	    case P_ISRESTRICTED:
 	    case P_UNSKILLED:   bonus = -9; break;
 	    case P_BASIC:	bonus = -7; break;
@@ -1018,8 +1033,18 @@ struct obj *weapon;
 	    case P_EXPERT:	bonus = -3; break;
 	}
     } else if (type == P_BARE_HANDED_COMBAT) {
-	/* restricted == 0 */
-	bonus = ((P_SKILL(type) + 1) * (martial_bonus() ? 2 : 1)) / 2;
+	/*
+	 *	       b.h.  m.a.
+	 *	unskl:	+1   n/a
+	 *	basic:	+1    +3
+	 *	skild:	+2    +4
+	 *	exprt:	+2    +5
+	 *	mastr:	+3    +6
+	 *	grand:	+3    +7
+	 */
+	bonus = P_SKILL(type);
+	bonus = max(bonus,P_UNSKILLED) - 1;	/* unskilled => 0 */
+	bonus = (bonus * (martial_bonus() ? 2 : 1)) / 2;
     }
 
 #ifdef STEED
@@ -1047,9 +1072,12 @@ int
 weapon_dam_bonus(weapon)
 struct obj *weapon;
 {
-    int type, skill, bonus = 0;
+    int type, wep_type, skill, bonus = 0;
 
-    type = u.twoweap ? P_TWO_WEAPON_COMBAT : weapon_type(weapon);
+    wep_type = weapon_type(weapon);
+    /* use two weapon skill only if attacking with one of the wielded weapons */
+    type = (u.twoweap && (weapon == uwep || weapon == uswapwep)) ?
+	    P_TWO_WEAPON_COMBAT : wep_type;
     if (type == P_NONE) {
 	bonus = 0;
     } else if (type <= P_LAST_WEAPON) {
@@ -1064,7 +1092,7 @@ struct obj *weapon;
 	}
     } else if (type == P_TWO_WEAPON_COMBAT) {
 	skill = P_SKILL(P_TWO_WEAPON_COMBAT);
-	if (P_SKILL(weapon->otyp) < skill) skill = P_SKILL(weapon->otyp);
+	if (P_SKILL(wep_type) < skill) skill = P_SKILL(wep_type);
 	switch (skill) {
 	    default:
 	    case P_ISRESTRICTED:
@@ -1074,7 +1102,18 @@ struct obj *weapon;
 	    case P_EXPERT:	bonus = 1; break;
 	}
     } else if (type == P_BARE_HANDED_COMBAT) {
-	bonus = (P_SKILL(type) * (martial_bonus() ? 3 : 1)) / 2;
+	/*
+	 *	       b.h.  m.a.
+	 *	unskl:	 0   n/a
+	 *	basic:	+1    +3
+	 *	skild:	+1    +4
+	 *	exprt:	+2    +6
+	 *	mastr:	+2    +7
+	 *	grand:	+3    +9
+	 */
+	bonus = P_SKILL(type);
+	bonus = max(bonus,P_UNSKILLED) - 1;	/* unskilled => 0 */
+	bonus = ((bonus + 1) * (martial_bonus() ? 3 : 1)) / 2;
     }
 
 #ifdef STEED
@@ -1163,6 +1202,21 @@ struct def_skill *class_skill;
 		P_ADVANCE(skill) = practice_needed_to_advance(P_SKILL(skill)-1);
 	    }
 	}
+}
+
+void
+setmnotwielded(mon,obj)
+register struct monst *mon;
+register struct obj *obj;
+{
+    if (!obj) return;
+    if (artifact_light(obj) && obj->lamplit) {
+	end_burn(obj, FALSE);
+	if (canseemon(mon))
+	    pline("%s in %s %s stops glowing.", The(xname(obj)),
+		s_suffix(mon_nam(mon)), mbodypart(mon,HAND));
+    }
+    obj->owornmask &= ~W_WEP;
 }
 
 #endif /* OVLB */

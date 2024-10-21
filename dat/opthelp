@@ -33,6 +33,8 @@ sortpack       group similar kinds of objects in inventory        [TRUE]
 sound          enable messages about what your character hears    [TRUE]
                (note: this has nothing to do with your computer's audio
                capabilities, and the game resets it periodically)
+sparkle        display sparkly effect for resisted magical        [TRUE]
+               attacks (e.g. fire attack on fire-resistant monster)
 standout       use standout mode for --More-- on messages         [FALSE]
 time           display elapsed game time, in moves                [FALSE]
 tombstone      print tombstone when you die                       [TRUE]
@@ -81,6 +83,7 @@ Compound options are written as option_name:option_value.
 
 Compound options which can be set during the game are:
 
+boulder       override the default boulder symbol with another default:`
 disclose      the types of information you want offered at the end of the
               game  [all]
 fruit         the name of a fruit you enjoy eating  [slime mold]

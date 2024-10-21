@@ -191,7 +191,7 @@ static char *FDECL(eos, (char *));
 /* input, output, tmp */
 static FILE *ifp, *ofp, *tfp;
 
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) && !defined(_WIN32)
 extern unsigned _stklen = STKSIZ;
 #endif
 
@@ -441,6 +441,9 @@ make_version()
 #ifdef STEED
 			| (1L << 11)
 #endif
+#ifdef GOLDOBJ
+			| (1L << 12)
+#endif
 		/* flag bits and/or other global variables (15..26) */
 #ifdef TEXTCOLOR
 			| (1L << 17)
@@ -575,7 +578,7 @@ do_date()
 	Fprintf(ofp,"#define AMIGA_VERSION_STRING ");
 	Fprintf(ofp,"\"\\0$VER: NetHack %d.%d.%d (%d.%d.%d)\"\n",
 		VERSION_MAJOR, VERSION_MINOR, PATCHLEVEL,
-		tm->tm_mday, tm->tm_mon+1, tm->tm_year);
+		tm->tm_mday, tm->tm_mon+1, tm->tm_year+1900);
 	}
 #endif
 	Fclose(ofp);
@@ -612,6 +615,9 @@ static const char *build_opts[] = {
 #endif
 #ifdef MFLOPPY
 		"floppy drive support",
+#endif
+#ifdef GOLDOBJ
+		"gold object in inventories",
 #endif
 #ifdef INSURANCE
 		"insurance files for recovering from crashes",

@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)teleport.c	3.3	2000/03/03	*/
+/*	SCCS Id: @(#)teleport.c	3.3	2001/12/06	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -485,6 +485,7 @@ level_tele()
 	register int newlev;
 	d_level newlevel;
 	const char *escape_by_flying = 0;	/* when surviving dest of -N */
+	char buf[BUFSZ];
 
 	if ((u.uhave.amulet || In_endgame(&u.uz) || In_sokoban(&u.uz))
 #ifdef WIZARD
@@ -499,7 +500,7 @@ level_tele()
 	   || wizard
 #endif
 		) {
-	    char buf[BUFSZ], qbuf[BUFSZ];
+	    char qbuf[BUFSZ];
 	    int trycnt = 0;
 
 	    Strcpy(qbuf, "To what level do you want to teleport?");
@@ -520,7 +521,8 @@ level_tele()
 		if (trycnt >= 10)
 		    goto random_levtport;
 		if (ynq("Go to Nowhere.  Are you sure?") != 'y') return;
-		You("scream in agony as your body begins to warp...");
+		You("%s in agony as your body begins to warp...",
+		    is_silent(youmonst.data) ? "writhe" : "scream");
 		display_nhwindow(WIN_MESSAGE, FALSE);
 		You("cease to exist.");
 		killer_format = NO_KILLER_PREFIX;
@@ -598,9 +600,11 @@ level_tele()
 		} else {
 		    pline("Unfortunately, you don't know how to fly.");
 		    You("plummet a few thousand feet to your death.");
+		    Sprintf(buf,
+				"teleported out of the dungeon and fell to %s death",
+				uhis());
+		    killer = buf;
 		    killer_format = NO_KILLER_PREFIX;
-		    killer =
-    self_pronoun("teleported out of the dungeon and fell to %s death","his");
 		}
 	}
 
@@ -791,6 +795,7 @@ struct monst *mtmp;
 register int x, y;
 {
 	register int oldx = mtmp->mx, oldy = mtmp->my;
+	boolean resident_shk = mtmp->isshk && inhishop(mtmp);
 
 	if (x == mtmp->mx && y == mtmp->my)	/* that was easy */
 		return;
@@ -820,6 +825,11 @@ register int x, y;
 
 	newsym(x, y);				/* update new location */
 	set_apparxy(mtmp);			/* orient monster */
+
+	/* shopkeepers will only teleport if you zap them with a wand of
+	   teleportation or if they've been transformed into a jumpy monster;
+	   the latter only happens if you've attacked them with polymorph */
+	if (resident_shk && !inhishop(mtmp)) make_angry_shk(mtmp, oldx, oldy);
 }
 
 /* place a monster at a random location, typically due to teleport */
@@ -828,7 +838,6 @@ rloc(mtmp)
 struct monst *mtmp;	/* mx==0 implies migrating monster arrival */
 {
 	register int x, y, trycount;
-	xchar omx = mtmp->mx, omy = mtmp->my;
 
 #ifdef STEED
 	if (mtmp == u.usteed) {
@@ -837,7 +846,7 @@ struct monst *mtmp;	/* mx==0 implies migrating monster arrival */
 	}
 #endif
 
-	if (mtmp->iswiz && omx) {	/* Wizard, not just arriving */
+	if (mtmp->iswiz && mtmp->mx) {	/* Wizard, not just arriving */
 	    if (!In_W_tower(u.ux, u.uy, &u.uz))
 		x = xupstair,  y = yupstair;
 	    else if (!xdnladder)	/* bottom level of tower */
@@ -872,10 +881,6 @@ struct monst *mtmp;	/* mx==0 implies migrating monster arrival */
 
  found_xy:
 	rloc_to(mtmp, x, y);
-	/* shopkeepers will only teleport if you zap them with a wand of
-	   teleportation or if they've been transformed into a jumpy monster;
-	   the latter only happens if you've attacked them with polymorph */
-	if (mtmp->isshk && !inhishop(mtmp)) make_angry_shk(mtmp, omx, omy);
 }
 
 STATIC_OVL void

@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)artilist.h 3.3	2000/07/22	*/
+/*	SCCS Id: @(#)artilist.h 3.3	2001/11/17	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -152,7 +152,8 @@ A("The Orb of Detection",	CRYSTAL_BALL,
 
 A("The Heart of Ahriman",	LUCKSTONE,
 	(SPFX_NOGEN|SPFX_RESTR|SPFX_INTEL), SPFX_STLTH, 0,
-	NO_ATTK,	NO_DFNS,	NO_CARY,
+	/* this stone does double damage if used as a projectile weapon */
+	PHYS(5,0),	NO_DFNS,	NO_CARY,
 	LEVITATION,	A_NEUTRAL, PM_BARBARIAN, NON_PM ),
 
 A("The Sceptre of Might",	MACE,

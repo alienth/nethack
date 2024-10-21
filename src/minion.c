@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)minion.c	3.3	2000/06/05	*/
+/*	SCCS Id: @(#)minion.c	3.3	2000/09/14	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -131,8 +131,12 @@ register struct monst *mtmp;
 	    if (!tele_restrict(mtmp)) rloc(mtmp);
 	    return(1);
 	}
+#ifndef GOLDOBJ
 	demand = (u.ugold * (rnd(80) + 20 * Athome)) /
-		 100 * (1 + (sgn(u.ualign.type) == sgn(mtmp->data->maligntyp)));
+#else
+	demand = (money_cnt(invent) * (rnd(80) + 20 * Athome)) /
+#endif
+	    (100 * (1 + (sgn(u.ualign.type) == sgn(mtmp->data->maligntyp))));
 	if (!demand)		/* you have no gold */
 	    return mtmp->mpeaceful = 0;
 	else {
@@ -162,9 +166,12 @@ struct monst *mtmp;
 {
 	char buf[BUFSZ];
 	long offer;
+#ifdef GOLDOBJ
+	long umoney = money_cnt(invent);
+#endif
 
 	getlin("How much will you offer?", buf);
-	(void) sscanf(buf, "%ld", &offer);
+	if (sscanf(buf, "%ld", &offer) != 1) offer = 0L;
 
 	/*Michael Paddon -- fix for negative offer to monster*/
 	/*JAR880815 - */
@@ -174,6 +181,7 @@ struct monst *mtmp;
 		offer = 0L;
 	} else if (offer == 0L) {
 		You("refuse.");
+#ifndef GOLDOBJ
 	} else if (offer >= u.ugold) {
 		You("give %s all your gold.", mon_nam(mtmp));
 		offer = u.ugold;
@@ -182,6 +190,15 @@ struct monst *mtmp;
 
 	u.ugold -= offer;
 	mtmp->mgold += offer;
+#else
+	} else if (offer >= umoney) {
+		You("give %s all your gold.", mon_nam(mtmp));
+		offer = umoney;
+	} else You("give %s %ld zorkmid%s.", mon_nam(mtmp), offer,
+		   plur(offer));
+
+        money2mon(mtmp, offer);
+#endif
 	flags.botl = 1;
 	return(offer);
 }

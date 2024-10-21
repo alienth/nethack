@@ -1,4 +1,4 @@
-#	SCCS Id: @(#)data.base	3.3	1999/11/28
+#	SCCS Id: @(#)data.base	3.3	2001/09/01
 #	Copyright (c) 1994, 1995, 1996 by the NetHack Development Team
 #	Copyright (c) 1994 by Boudewijn Wayers
 #	NetHack may be freely redistributed.  See license for details.
@@ -901,6 +901,7 @@ pup*
 	loyalty to man and gentleness with children, it is the
 	world's most popular domestic animal.  It can easily be
 	trained to perform various tasks.
+~trap*door
 *door
 doorway
 	Through me you pass into the city of woe:
@@ -942,6 +943,7 @@ doorway
 	being who ever joined in the fierce, mad, intoxicating revel
 	of the Dum-Dum.
 		[ Tarzan of the Apes, by Edgar Rice Burroughs ]
+~dwarf ??m*
 dwarf*
 	Dwarfs have faces like men (ugly men, with wrinkled, leathery
 	skins), but are generally either flat-footed, duck-footed, or
@@ -1007,7 +1009,7 @@ elbereth
 		A Elbereth Gilthoniel,
 		silivren penna miriel
 		o menel aglar elenath!
-		Na-chaered palen-diriel
+		Na-chaered palan-diriel
 		o galadhremmin ennorath,
 		Fanuilos, le linnathon
 		nef aear, si nef aearon!
@@ -1339,7 +1341,22 @@ gnomish wizard
 	of his hat but forgot to doff it.
 	'What is the trouble, Alaraba?'  said Ramon Alonzo.
 	'White magic.  Run!'  said the gnome ..
-	     [ The Charwoman's Shadow, by Lord Dunsany ]
+		[ The Charwoman's Shadow, by Lord Dunsany ]
+
+	"Muggles have garden gnomes, too, you know," Harry told Ron as
+	they crossed the lawn.
+	"Yeah, I've seen those things they think are gnomes," said Ron,
+	bent double with his head in a peony bush, "like fat little
+	Santa Clauses with fishing rods..."
+	There was a violent scuffling noise, the peony bush shuddered,
+	and Ron straightened up.  "This is a gnome," he said grimly.
+	"Geroff me! Gerroff me!" squealed the gnome.
+	It was certainly nothing like Santa Claus.  It was small and
+	leathery looking, with a large, knobby, bald head exactly like
+	a potato.  Ron held it at arm's length as it kicked out at him
+	with its horny little feet; he grasped it around the ankles
+	and turned it upside down.
+	  [ Harry Potter and the Chamber of Secrets, by J. K. Rowling ]
 goblin
 	Now goblins are cruel, wicked, and bad-hearted.  They make
 	no beautiful things, but they make many clever ones.  They
@@ -2587,6 +2604,15 @@ neanderthal*
 	1.  Valley between Duesseldorf and Elberfeld in Germany,
 	where an ancient skull of a prehistoric ancestor to modern
 	man was found.  2.  Human(oid) of the race mentioned above.
+neferet
+neferet the green
+	Neferet the Green holds office in her hidden tower, only
+	reachable by magical means, where she teaches her apprentices
+	the enigmatic skills of occultism.  Despite her many years, she
+	continues to investigate new spells, especially those involving
+	translocation.  It is further rumored that when she was an
+	apprentice herself, she accidentally turned her skin green, and
+	has kept it that way ever since.
 newt
 	(kinds of) small animal, like a lizard, which spends most of
 	its time in the water.
@@ -2885,7 +2911,7 @@ platinum yendorian express card
 	This is an ancient artifact made of an unknown material.  It
 	is rectangular in shape, very thin, and inscribed with
 	unreadable ancient runes.  When carried, it grants the one
-	who carries it ESP, and reduces all physical damage done to
+	who carries it ESP, and reduces all spell induced damage done to
 	the carrier by half.  It also protects from magic missile
 	attacks.  Finally, its power is such that when invoked, it
 	can charge other objects.
@@ -3015,6 +3041,15 @@ quetzalcoatl
 	he had to leave his empire. ...  But all the legends of
 	Quetzalcoatl unanimously agree that he promised to come again.
 		[ Gods, Graves, and Scholars, by C. W. Ceram ]
+quit*
+	Maltar: [...]  I remembered a little saying I learned my first
+	day at the academy.
+	Natalie: Yeah, yeah, I know.  Winners never quit and quitters
+	never win.
+	Maltar: What?  No!  Winners never quit and quitters should be
+	cast into the flaming pit of death.
+		[ Snow Day, directed by Chris Koch,
+		  written by Will McRobb and Chris Viscardi ]
 raijin
 raiden
 	The god of thunder.
@@ -3253,7 +3288,7 @@ scorpius
 	As Scorpius rises in the east, Orion sets in the west.
 		[ 365 Starry Nights, by Chet Raymo ]
 *scroll
-scroll of *
+scroll *
 	And I was gazing on the surges prone,
 	With many a scalding tear and many a groan,
 	When at my feet emerg'd an old man's hand,
@@ -3730,6 +3765,7 @@ tree
 	Poems are made by fools like me,
 	But only God can make a tree.
 		[ Trees - Joyce Kilmer ]
+tripe
 tripe ration
 	If you start from scratch, cooking tripe is a long-drawn-out
 	affair.  Fresh whole tripe calls for a minimum of 12 hours of
@@ -3978,12 +4014,6 @@ web
 	flat on his back upon a cold stone with his hands on his
 	breast.
 		[ The Fellowship of the Ring, by J.R.R. Tolkien ]
-wizard of balance
-	The Wizard of Balance holds office in his hidden tower, only
-	reachable by magical means, where he teaches his apprentices
-	the enigmatic skills of occultism.  He considers himself a
-	guardian of the equilibrium of the universe, and goes out of
-	his way to promote stability.
 wizard of yendor
 	No one knows how old this mighty wizard is, or from whence he
 	came.  It is known that, having lived a span far greater than

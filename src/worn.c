@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)worn.c	3.3	2000/02/19	*/
+/*	SCCS Id: @(#)worn.c	3.3	2001/09/05	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -476,14 +476,55 @@ struct obj *obj;
 }
 
 void
-mon_break_armor(mon)
+clear_bypasses()
+{
+	struct obj *otmp, *nobj;
+
+	for (otmp = fobj; otmp; otmp = nobj) {
+	    nobj = otmp->nobj;
+	    if (otmp->bypass) {
+		otmp->bypass = 0;
+#if 0
+		/*  setting otmp->bypass changes mergability.
+		 *  If monster can ever drop anything that
+                 *  can and should merge, this code block
+		 *  should be enabled.
+		 */
+		{
+		    struct obj *obj;
+		    xchar ox, oy;
+		    (void) get_obj_location(otmp, &ox, &oy, 0);
+		    obj_extract_self(otmp);
+		    obj = merge_choice(fobj, otmp);
+		    /* If it can't merge, then place it */
+		    if (!obj || (obj && !merged(&obj, &otmp)))
+		        place_object(otmp, ox, oy);
+		    newsym(ox, oy);
+		}
+#endif
+	    }
+	}
+	flags.bypasses = FALSE;
+}
+
+void
+bypass_obj(obj)
+struct obj *obj;
+{
+	obj->bypass = 1;
+	flags.bypasses = TRUE;
+}
+
+void
+mon_break_armor(mon, polyspot)
 struct monst *mon;
+boolean polyspot;
 {
 	register struct obj *otmp;
 	struct permonst *mdat = mon->data;
 	boolean vis = cansee(mon->mx, mon->my);
-	const char *pronoun = him[pronoun_gender(mon)],
-			*ppronoun = his[pronoun_gender(mon)];
+	const char *pronoun = mhim(mon),
+			*ppronoun = mhis(mon);
 
 	if (breakarm(mdat)) {
 	    if ((otmp = which_armor(mon, W_ARM)) != 0) {
@@ -496,11 +537,14 @@ struct monst *mon;
 	    if ((otmp = which_armor(mon, W_ARMC)) != 0) {
 		if (otmp->oartifact) {
 		    if (vis)
-			pline("%s cloak falls off!", s_suffix(Monnam(mon)));
+			pline("%s %s falls off!", s_suffix(Monnam(mon)),
+				cloak_simple_name(otmp));
+		    if (polyspot) bypass_obj(otmp);
 		    m_lose_armor(mon, otmp);
 		} else {
 		    if (vis)
-			pline("%s cloak tears apart!", s_suffix(Monnam(mon)));
+			pline("%s %s tears apart!", s_suffix(Monnam(mon)),
+				cloak_simple_name(otmp));
 		    else
 			You_hear("a ripping sound.");
 		    m_useup(mon, otmp);
@@ -522,17 +566,19 @@ struct monst *mon;
 				 s_suffix(Monnam(mon)), pronoun);
 		else
 		    You_hear("a thud.");
+		if (polyspot) bypass_obj(otmp);
 		m_lose_armor(mon, otmp);
 	    }
 	    if ((otmp = which_armor(mon, W_ARMC)) != 0) {
 		if (vis) {
 		    if (is_whirly(mon->data))
-			pline("%s cloak falls, unsupported!",
-				     s_suffix(Monnam(mon)));
+			pline("%s %s falls, unsupported!",
+				     s_suffix(Monnam(mon)), cloak_simple_name(otmp));
 		    else
-			pline("%s shrinks out of %s cloak!", Monnam(mon),
-								ppronoun);
+			pline("%s shrinks out of %s %s!", Monnam(mon),
+						ppronoun, cloak_simple_name(otmp));
 		}
+		if (polyspot) bypass_obj(otmp);
 		m_lose_armor(mon, otmp);
 	    }
 #ifdef TOURIST
@@ -545,6 +591,7 @@ struct monst *mon;
 			pline("%s becomes much too small for %s shirt!",
 					Monnam(mon), ppronoun);
 		}
+		if (polyspot) bypass_obj(otmp);
 		m_lose_armor(mon, otmp);
 	    }
 #endif
@@ -555,6 +602,7 @@ struct monst *mon;
 		    pline("%s drops %s gloves%s!", Monnam(mon), ppronoun,
 					MON_WEP(mon) ? " and weapon" : "");
 		possibly_unwield(mon);
+		if (polyspot) bypass_obj(otmp);
 		m_lose_armor(mon, otmp);
 	    }
 	    if ((otmp = which_armor(mon, W_ARMS)) != 0) {
@@ -563,6 +611,7 @@ struct monst *mon;
 								ppronoun);
 		else
 		    You_hear("a clank.");
+		if (polyspot) bypass_obj(otmp);
 		m_lose_armor(mon, otmp);
 	    }
 	    if ((otmp = which_armor(mon, W_ARMH)) != 0) {
@@ -571,6 +620,7 @@ struct monst *mon;
 			  s_suffix(Monnam(mon)), surface(mon->mx, mon->my));
 		else
 		    You_hear("a clank.");
+		if (polyspot) bypass_obj(otmp);
 		m_lose_armor(mon, otmp);
 	    }
 	}
@@ -585,12 +635,14 @@ struct monst *mon;
 			s_suffix(Monnam(mon)),
 			verysmall(mdat) ? "slide" : "are pushed", ppronoun);
 		}
+		if (polyspot) bypass_obj(otmp);
 		m_lose_armor(mon, otmp);
 	    }
 	}
 #ifdef STEED
 	if (!can_saddle(mon)) {
 	    if ((otmp = which_armor(mon, W_SADDLE)) != 0) {
+		if (polyspot) bypass_obj(otmp);
 		m_lose_armor(mon, otmp);
 		if (vis)
 		    pline("%s saddle falls off.", s_suffix(Monnam(mon)));

@@ -107,13 +107,6 @@ char *argv[];
 	}
 
 	/*
-	 * Find the creation date of this game,
-	 * so as to avoid restoring outdated savefiles.
-	 */
-	gethdate(hname);
-
-	/*
-	 * We cannot do chdir earlier, otherwise gethdate will fail.
 	 * Change directories before we initialize the window system so
 	 * we can find the tile file.
 	 */
@@ -363,6 +356,9 @@ char *argv[];
 			    	flags.initrace = i;
 			}
 			break;
+		case '@':
+			flags.randomall = 1;
+			break;
 		default:
 			if ((i = str2role(&argv[0][1])) >= 0) {
 			    flags.initrole = i;
@@ -491,4 +487,25 @@ wd_message()
 	if (discover)
 		You("are in non-scoring discovery mode.");
 }
+
+/*
+ * Add a backslash to any name not ending in /. There must
+ * be room for the /
+ */
+void
+append_slash(name)
+char *name;
+{
+	char *ptr;
+
+	if (!*name)
+		return;
+	ptr = name + (strlen(name) - 1);
+	if (*ptr != '/') {
+		*++ptr = '/';
+		*++ptr = '\0';
+	}
+	return;
+}
+
 /*unixmain.c*/

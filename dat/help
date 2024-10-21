@@ -43,6 +43,7 @@ on.
         \        An opulent throne.
         `        A boulder or statue.
         A to Z, a to z, and several others:  Monsters.
+        I        Invisible monster's last known location
 
                  You can find out what a symbol represents by typing
                  '/' and following the directions to move the cursor
@@ -70,6 +71,7 @@ Commands:
         <       Go up a staircase (if you are standing on it).
         >       Go down a staircase (if you are standing on it).
         .       Rest, do nothing for one turn.
+        _       Travel via a shortest-path algorithm to a point on the map 
         a       Apply (use) a tool (pick-axe, key, lamp...)
         A       Remove all armor.
         ^A      Redo the previous command
@@ -133,6 +135,7 @@ Commands:
         W       Wear armor.
         x       Swap wielded and secondary weapons.
         X       Switch the game to explore (discovery) mode.
+        ^X      Show your attributes.
         z       Zap a wand.
         Z       Cast a spell.
         ^Z      Suspend the game.

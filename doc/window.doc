@@ -5,16 +5,17 @@ NetHack.  The support is through a standard interface, separating the
 main NetHack code from window-system specific code.  The implementation
 supports multiple window systems in the same binary.  Even if you only
 wish to support one window-port on your port, you will need to follow
-the instructions in Section VII to get a compilable binary.
+the instructions in Section VIII to get a compilable binary.
 
 Contents:
-	I.   Window Types and Terminology
-	II.  Interface Specification
-	III. Global variables
-	IV.  New or respecified common, high level routines
-	V.   Game startup
-	VI.  Conventions
-	VII. Implementation and Multi-window support
+	I.    Window Types and Terminology
+	II.   Interface Specification
+	III.  Global variables
+	IV.   New or respecified common, high level routines
+	V.    Helper routines
+	VI.   Game startup
+	VII.  Conventions
+	VIII. Implementation and Multi-window support
 
 I.  Window Types and Terminology
 
@@ -388,8 +389,20 @@ pline(str, ...)
 		   by Norep() and pline().  If the window system is not active
 		   (!iflags.window_inited) pline() uses raw_print().
 
+V.  Helper Routines
 
-V.  Game startup
+These are not part of the interface. They may be called by your
+window port routines to perform the desired task, instead of duplicating
+the necessary code in each window port.
+
+mapglyph(int glyph, int *ochar, int *ocolor, unsigned *special, int x, int y)
+		-- Maps glyph at x,y to NetHack ascii character and color.
+		   If it represents something special such as a pet, that
+		   information is returned as set bits in "special." 
+		   Usually called from the window port's print_glyph() 
+		   routine.
+
+VI.  Game startup
 
 The following is the general order in which calls from main() should be made,
 as they relate to the window system.  The actual code may differ, but the
@@ -422,7 +435,7 @@ Process_options() is currently still unique to each port.  There may be need
 in the future to make it possible to replace this on a per window-port basis.
 
 
-VI.  Conventions
+VII.  Conventions
 
 init_nhwindows() is expected to display a gee-whiz banner window, including
 the Copyright message.  It is recommended that the COPYRIGHT_BANNER_A,
@@ -447,7 +460,7 @@ in win/X11.  The files in these directories contain _only_ window port code,
 and may be replaced completely by other window ports.
 
 
-VII.  Implementation and Multi-window support
+VIII.  Implementation and Multi-window support
 
 NetHack 3.2 and higher support multiple window systems in the same binary.
 When writing a new window-port, you need to follow the following guidelines:
@@ -525,7 +538,7 @@ When writing a new window-port, you need to follow the following guidelines:
 
 9) Look at your port's portmain.c (the file containing main()) and make
    sure that all of the calls match the the requirements laid out in
-   Section V.
+   Section VI.
 
 Now, proceed with compilation and installation as usual.  Don't forget
 to edit Makefile.src (or its equivalent) and config.h to set the

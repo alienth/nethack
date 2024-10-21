@@ -82,7 +82,7 @@ register struct monst *mon;
 	/* regenerate by 1/4 of the lost hit points */
 	mon->mhp += (mon->mhpmax - mon->mhp) / 4;
 	newsym(mon->mx,mon->my);
-	mon_break_armor(mon);
+	mon_break_armor(mon, FALSE);
 	possibly_unwield(mon);
 }
 

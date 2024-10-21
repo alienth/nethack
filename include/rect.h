@@ -5,7 +5,7 @@
 #ifndef RECT_H
 #define RECT_H
 
-typedef struct {
+typedef struct nhrect {
 	xchar lx, ly;
 	xchar hx, hy;
 } NhRect;

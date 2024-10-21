@@ -393,8 +393,8 @@ hitmm(magr, mdef, mattk)
 			default:
 				Sprintf(buf,"%s hits", magr_name);
 		    }
+		    pline("%s %s.", buf, mon_nam_too(mdef_name, mdef, magr));
 		}
-		pline("%s %s.", buf, mon_nam_too(mdef_name, mdef, magr));
 	} else  noises(magr, mattk);
 	return(mdamagem(magr, mdef, mattk));
 }
@@ -412,9 +412,37 @@ gazemm(magr, mdef, mattk)
 		pline("%s %s...", buf, mon_nam(mdef));
 	}
 
-	if (!mdef->mcansee || mdef->msleeping) {
+	if (magr->mcan || !magr->mcansee ||
+	    (magr->minvis && !perceives(mdef->data)) ||
+	    !mdef->mcansee || mdef->msleeping) {
 	    if(vis) pline("but nothing happens.");
 	    return(MM_MISS);
+	}
+	/* call mon_reflects 2x, first test, then, if visible, print message */
+	if (magr->data == &mons[PM_MEDUSA] && mon_reflects(mdef, (char *)0)) {
+	    if (canseemon(mdef))
+		(void) mon_reflects(mdef,
+				    "The gaze is reflected away by %s %s.");
+	    if (mdef->mcansee) {
+		if (mon_reflects(magr, (char *)0)) {
+		    if (canseemon(magr))
+			(void) mon_reflects(magr,
+					"The gaze is reflected away by %s %s.");
+		    return (MM_MISS);
+		}
+		if (mdef->minvis && !perceives(magr->data)) {
+		    if (canseemon(magr)) {
+			pline("%s doesn't seem to notice that %s gaze was reflected.",
+			      Monnam(magr), mhis(magr));
+		    }
+		    return (MM_MISS);
+		}
+		if (canseemon(magr))
+		    pline("%s is turned to stone!", Monnam(magr));
+		monstone(magr);
+		if (magr->mhp > 0) return (MM_MISS);
+		return (MM_AGR_DIED);
+	    }
 	}
 
 	return(mdamagem(magr, mdef, mattk));
@@ -526,11 +554,14 @@ mdamagem(magr, mdef, mattk)
 	int	tmp = d((int)mattk->damn,(int)mattk->damd);
 	struct obj *obj;
 	char buf[BUFSZ];
+	int protector =
+	    mattk->aatyp == AT_TENT ? 0 :
+	    mattk->aatyp == AT_KICK ? W_ARMF : W_ARMG;
 
 	if (touch_petrifies(pd) && !resists_ston(magr) &&
 	   (mattk->aatyp != AT_WEAP || !otmp) &&
 	   (mattk->aatyp != AT_GAZE && mattk->aatyp != AT_EXPL) &&
-	   !(magr->misc_worn_check & W_ARMG)) {
+	   !(magr->misc_worn_check & protector)) {
 		if (poly_when_stoned(pa)) {
 		    mon_to_stone(magr);
 		    return MM_HIT; /* no damage during the polymorph */
@@ -567,7 +598,9 @@ mdamagem(magr, mdef, mattk)
 		break;
 	    case AD_STUN:
 		if (magr->mcan) break;
-		if(vis) pline("%s staggers for a moment.", Monnam(mdef));
+		if (canseemon(mdef))
+		    pline("%s %s for a moment.", Monnam(mdef),
+			  makeplural(stagger(mdef->data, "stagger")));
 		mdef->mstun = 1;
 		/* fall through */
 	    case AD_WERE:
@@ -607,6 +640,7 @@ mdamagem(magr, mdef, mattk)
 		}
 		if (vis)
 		    pline("%s is %s!", Monnam(mdef),
+			  mdef->data == &mons[PM_WATER_ELEMENTAL] ? "boiling" :
 			  mattk->aatyp == AT_HUGS ?
 				"being roasted" : "on fire");
 		if (pd == &mons[PM_STRAW_GOLEM] ||
@@ -679,7 +713,7 @@ mdamagem(magr, mdef, mattk)
 		    pline("It burns %s!", mon_nam(mdef));
 		}
 		if (!rn2(30)) erode_armor(mdef, TRUE);
-		if (!rn2(6)) erode_weapon(MON_WEP(mdef), TRUE);
+		if (!rn2(6)) erode_obj(MON_WEP(mdef), TRUE, TRUE);
 		break;
 	    case AD_RUST:
 		if (!magr->mcan && pd == &mons[PM_IRON_GOLEM]) {
@@ -694,8 +728,8 @@ mdamagem(magr, mdef, mattk)
 		hurtmarmor(mdef, AD_RUST);
 		tmp = 0;
 		break;
-	    case AD_CORRODE:
-		hurtmarmor(mdef, AD_CORRODE);
+	    case AD_CORR:
+		hurtmarmor(mdef, AD_CORR);
 		tmp = 0;
 		break;
 	    case AD_DCAY:
@@ -834,12 +868,25 @@ label2:			if (mdef->mhp > 0) return 0;
 		break;
 	    case AD_SGLD:
 		tmp = 0;
+#ifndef GOLDOBJ
 		if (magr->mcan || !mdef->mgold) break;
 		/* technically incorrect; no check for stealing gold from
 		 * between mdef's feet...
 		 */
 		magr->mgold += mdef->mgold;
 		mdef->mgold = 0;
+#else
+                if (magr->mcan) break;
+		/* technically incorrect; no check for stealing gold from
+		 * between mdef's feet...
+		 */
+                {
+		    struct obj *gold = findgold(mdef->minvent);
+		    if (!gold) break;
+                    obj_extract_self(gold);
+		    add_to_minv(magr, gold);
+                }
+#endif
 		if (vis) {
 		    Strcpy(buf, Monnam(magr));
 		    pline("%s steals some gold from %s.", buf, mon_nam(mdef));
@@ -867,14 +914,20 @@ label2:			if (mdef->mhp > 0) return 0;
 #endif
 	    case AD_SITM:	/* for now these are the same */
 	    case AD_SEDU:
-		if (!magr->mcan && mdef->minvent) {
+		/* find an object to steal, non-cursed if magr is tame */
+		for (obj = mdef->minvent; obj; obj = obj->nobj) {
+		    if (!magr->mtame || !obj->cursed)
+			break;
+		}
+
+		if (!magr->mcan && obj) {
 			char onambuf[BUFSZ], mdefnambuf[BUFSZ];
 
 			/* make a special x_monnam() call that never omits
 			   the saddle, and save it for later messages */
 			Strcpy(mdefnambuf, x_monnam(mdef, ARTICLE_THE, (char *)0, 0, FALSE));
 
-			otmp = mdef->minvent;
+			otmp = obj;
 #ifdef STEED
 			if (u.usteed == mdef &&
 					otmp == which_armor(mdef, W_SADDLE))
@@ -884,6 +937,8 @@ label2:			if (mdef->mhp > 0) return 0;
 			obj_extract_self(otmp);
 			if (otmp->owornmask) {
 				mdef->misc_worn_check &= ~otmp->owornmask;
+				if (otmp->owornmask & W_WEP)
+				    setmnotwielded(mdef,otmp);
 				otmp->owornmask = 0L;
 				update_mon_intrinsics(mdef, otmp, FALSE);
 			}
@@ -933,6 +988,7 @@ label2:			if (mdef->mhp > 0) return 0;
 	    case AD_DRIN:
 		if (notonhead || !has_head(pd)) {
 		    if (vis) pline("%s doesn't seem harmed.", Monnam(mdef));
+		    /* Not clear what to do for green slimes */
 		    tmp = 0;
 		    break;
 		}
@@ -941,7 +997,7 @@ label2:			if (mdef->mhp > 0) return 0;
 			Strcpy(buf, s_suffix(Monnam(mdef)));
 			pline("%s helmet blocks %s attack to %s head.",
 				buf, s_suffix(mon_nam(magr)),
-				his[pronoun_gender(mdef)]);
+				mhis(mdef));
 		    }
 		    break;
 		}
@@ -964,7 +1020,7 @@ label2:			if (mdef->mhp > 0) return 0;
 	    			mdef->data != &mons[PM_FIRE_ELEMENTAL] &&
 	    			mdef->data != &mons[PM_GREEN_SLIME]) {
 	    	    if (vis) pline("%s turns into slime.", Monnam(mdef));
-	    	    (void) newcham(mdef, &mons[PM_GREEN_SLIME]);
+	    	    (void) newcham(mdef, &mons[PM_GREEN_SLIME], FALSE);
 	    	    tmp = 0;
 	    	}
 	    	break;
@@ -1054,7 +1110,7 @@ register struct obj *obj;
 
 	if (!magr || !mdef || !obj) return; /* just in case */
 
-	if (dmgtype(mdef->data, AD_CORRODE))
+	if (dmgtype(mdef->data, AD_CORR))
 	    is_acid = TRUE;
 	else if (dmgtype(mdef->data, AD_RUST))
 	    is_acid = FALSE;
@@ -1088,11 +1144,11 @@ register struct monst *magr, *mdef;
 register struct obj *otemp;
 {
 	char buf[BUFSZ];
+	if (!flags.verbose || Blind || !mon_visible(magr)) return;
 	Strcpy(buf, mon_nam(mdef));
-	if (!flags.verbose || Blind) return;
 	pline("%s %s %s %s at %s.", Monnam(magr),
 	      (objects[otemp->otyp].oc_dir & PIERCE) ? "thrusts" : "swings",
-	      his[pronoun_gender(magr)], xname(otemp), buf);
+	      mhis(magr), xname(otemp), buf);
 }
 
 /*
@@ -1198,7 +1254,8 @@ int mdead;
 		if (!magr->mstun) {
 		    magr->mstun = 1;
 		    if (canseemon(magr))
-			pline("%s staggers...", Monnam(magr));
+			pline("%s %s...", Monnam(magr),
+			      makeplural(stagger(magr->data, "stagger")));
 		}
 		tmp = 0;
 		break;

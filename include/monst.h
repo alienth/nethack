@@ -83,7 +83,7 @@ struct monst {
 	Bitfield(mspeed,2);	/* current speed */
 	Bitfield(permspeed,2);	/* intrinsic mspeed value */
 	Bitfield(mrevived,1);	/* has been revived from the dead */
-	Bitfield(not_used,1);	/*** available ***/
+	Bitfield(mavenge,1);	/* did something to deserve retaliation */
 
 	Bitfield(mflee,1);	/* fleeing */
 	Bitfield(mfleetim,7);	/* timeout for mflee */
@@ -128,7 +128,9 @@ struct monst {
 
 	long mtrapseen;		/* bitmap of traps we've been trapped in */
 	long mlstmv;		/* for catching up with lost time */
+#ifndef GOLDOBJ
 	long mgold;
+#endif
 	struct obj *minvent;
 
 	struct obj *mw;

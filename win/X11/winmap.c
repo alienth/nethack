@@ -100,75 +100,16 @@ X11_print_glyph(window, x, y, glyph)
 
     } else {
 	uchar			ch;
-	register int		offset;
 	register unsigned char *ch_ptr;
+	int			color,och;
+	unsigned		special;
 #ifdef TEXTCOLOR
-	int			color;
 	register unsigned char *co_ptr;
-
-#define zap_color(n)  color = zapcolors[n]
-#define cmap_color(n) color = defsyms[n].color
-#define obj_color(n)  color = objects[n].oc_color
-#define mon_color(n)  color = mons[n].mcolor
-#define invis_color(n) color = NO_COLOR
-#define pet_color(n)  color = mons[n].mcolor
-#define warn_color(n) color = iflags.use_color ? def_warnsyms[n].color : NO_COLOR
-# else /* no text color */
-
-#define zap_color(n)
-#define cmap_color(n)
-#define obj_color(n)
-#define mon_color(n)
-#define invis_color(n)
-#define pet_color(n)
-#define warn_color(n)
-
 #endif
-
-	/*
-	 *  Map the glyph back to a character.
-	 *
-	 *  Warning:  For speed, this makes an assumption on the order of
-	 *            offsets.  The order is set in display.h.
-	 */
-	if ((offset = (glyph - GLYPH_WARNING_OFF)) >= 0) { 	/* a warning flash */
-		ch = warnsyms[offset];
-		warn_color(offset);
-	} else if ((offset = (glyph - GLYPH_SWALLOW_OFF)) >= 0) {	/* swallow */
-	    /* see swallow_to_glyph() in display.c */
-	    ch = (uchar) showsyms[S_sw_tl + (offset & 0x7)];
-	    mon_color(offset >> 3);
-	} else if ((offset = (glyph - GLYPH_ZAP_OFF)) >= 0) {	/* zap beam */
-	    /* see zapdir_to_glyph() in display.c */
-	    ch = showsyms[S_vbeam + (offset & 0x3)];
-	    zap_color((offset >> 2));
-	} else if ((offset = (glyph - GLYPH_CMAP_OFF)) >= 0) {	/* cmap */
-	    ch = showsyms[offset];
-	    cmap_color(offset);
-	} else if ((offset = (glyph - GLYPH_OBJ_OFF)) >= 0) {	/* object */
-	    ch = oc_syms[(int) objects[offset].oc_class];
-	    obj_color(offset);
-	} else if ((offset = (glyph - GLYPH_RIDDEN_OFF)) >= 0) {/* ridden mon */
-	    ch = monsyms[(int) mons[offset].mlet];
-	    mon_color(offset);
-	} else if ((offset = (glyph - GLYPH_BODY_OFF)) >= 0) {	/* a corpse */
-	    ch = oc_syms[(int) objects[CORPSE].oc_class];
-	    mon_color(offset);
-	} else if ((offset = (glyph - GLYPH_DETECT_OFF)) >= 0) {
-	    /* monster detection; should really be inverse */
-	    ch = monsyms[(int) mons[offset].mlet];
-	    mon_color(offset);
-	} else if ((offset = (glyph - GLYPH_INVIS_OFF)) >= 0) {	/* invisible */
-	    ch = DEF_INVISIBLE;
-	    invis_color(offset);
-	} else if ((offset = (glyph - GLYPH_PET_OFF)) >= 0) {	/* a pet */
-	    ch = monsyms[(int) mons[offset].mlet];
-	    pet_color(offset);
-	} else {						/* a monster */
-	    ch = monsyms[(int) mons[glyph].mlet];
-	    mon_color(glyph);
-	}
-
+	/* map glyph to character and color */
+        mapglyph(glyph, &och, &color, &special, x, y);
+	ch = (uchar)och;
+	
 	/* Only update if we need to. */
 	ch_ptr = &map_info->mtype.text_map->text[y][x];
 
@@ -623,7 +564,9 @@ check_cursor_visibility(wp)
 	XtSetArg(arg[1], XtNtopOfThumb, &top);
 	XtGetValues(horiz_sb, arg, TWO);
 
-	cursor_middle = (((float) wp->cursx) + 0.5) / (float) COLNO;
+	/* [ALI] Don't assume map widget is the same size as actual map */
+	cursor_middle = (wp->cursx + 0.5) * wp->map_information->square_width /
+	  wp->pixel_width;
 	do_call = True;
 
 #ifdef VERBOSE
@@ -669,7 +612,8 @@ check_cursor_visibility(wp)
 	XtSetArg(arg[1], XtNtopOfThumb, &top);
 	XtGetValues(vert_sb, arg, TWO);
 
-	cursor_middle = (((float) wp->cursy) + 0.5) / (float) ROWNO;
+	cursor_middle = (wp->cursy + 0.5) * wp->map_information->square_height /
+	  wp->pixel_height;
 	do_call = True;
 
 #ifdef VERBOSE
@@ -743,11 +687,30 @@ map_check_size_change(wp)
     /* Only do cursor check if new size is smaller. */
     if (new_width < map_info->viewport_width
 		    || new_height < map_info->viewport_height) {
+	/* [ALI] If the viewport was larger than the map (and so the map
+	 * widget was contrained to be larger than the actual map) then we
+	 * may be able to shrink the map widget as the viewport shrinks.
+	 */
+	wp->pixel_width = map_info->square_width * COLNO;
+	if (wp->pixel_width < new_width)
+	    wp->pixel_width = new_width;
+	wp->pixel_height = map_info->square_height * ROWNO;
+	if (wp->pixel_height < new_height)
+	    wp->pixel_height = new_height;
+	XtSetArg(arg[0], XtNwidth, wp->pixel_width);
+	XtSetArg(arg[1], XtNheight, wp->pixel_height);
+	XtSetValues(wp->w, arg, TWO);
+
 	check_cursor_visibility(wp);
     }
 
     map_info->viewport_width = new_width;
     map_info->viewport_height = new_height;
+
+    /* [ALI] These may have changed if the user has re-sized the viewport */
+    XtSetArg(arg[0], XtNwidth, &wp->pixel_width);
+    XtSetArg(arg[1], XtNheight, &wp->pixel_height);
+    XtGetValues(wp->w, arg, TWO);
 }
 
 /*

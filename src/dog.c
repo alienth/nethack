@@ -15,6 +15,7 @@ register struct monst *mtmp;
 {
 	mtmp->mtame = is_domestic(mtmp->data) ? 10 : 5;
 	mtmp->mpeaceful = 1;
+	mtmp->mavenge = 0;
 	set_malign(mtmp); /* recalc alignment now that it's tamed */
 	mtmp->mleashed = 0;
 	mtmp->meating = 0;
@@ -442,7 +443,9 @@ boolean pets_only;	/* true for ascension or final escape */
 		   the amulet; if you don't have it, will chase you
 		   only if in range. -3. */
 			(u.uhave.amulet && mtmp->iswiz))
-			&& !mtmp->msleeping && mtmp->mcanmove) {
+		&& !mtmp->msleeping && mtmp->mcanmove
+		/* monster won't follow if it hasn't noticed you yet */
+		&& !(mtmp->mstrategy & STRAT_WAITFORU)) {
 		stay_behind = FALSE;
 		if (mtmp->mtame && mtmp->meating) {
 			if (canseemon(mtmp))
@@ -452,6 +455,10 @@ boolean pets_only;	/* true for ascension or final escape */
 			if (canseemon(mtmp))
 			    pline("%s seems very disoriented for a moment.",
 				Monnam(mtmp));
+			stay_behind = TRUE;
+		} else if (mtmp->mtame && mtmp->mtrapped) {
+			if (canseemon(mtmp))
+			    pline("%s is still trapped.", Monnam(mtmp));
 			stay_behind = TRUE;
 		}
 		if (stay_behind
@@ -648,10 +655,11 @@ register struct obj *obj;
 		return(TABU);
 	    if (mon->data == &mons[PM_GELATINOUS_CUBE] && is_organic(obj))
 		return(ACCFOOD);
-	    if (metallivorous(mon->data) && is_metallic(obj))
+	    if (metallivorous(mon->data) && is_metallic(obj) && (is_rustprone(obj) || mon->data != &mons[PM_RUST_MONSTER])) {
 		/* Non-rustproofed ferrous based metals are preferred. */
-		return(objects[obj->otyp].oc_material == IRON &&
-		       !obj->oerodeproof ? DOGFOOD : ACCFOOD);
+		return((is_rustprone(obj) && !obj->oerodeproof) ? DOGFOOD :
+			ACCFOOD);
+	    }
 	    if(!obj->cursed && obj->oclass != BALL_CLASS &&
 						obj->oclass != CHAIN_CLASS)
 		return(APPORT);
@@ -796,6 +804,8 @@ boolean quietly;
     		mtmp->mpeaceful = mtmp->mtame = 0;
     	}
     }
+    if (!mtmp->mtame) newsym(mtmp->mx, mtmp->my);
+
     /* if its still a pet, start a clean pet-slate now */
     if (has_edog && mtmp->mtame) {
 	EDOG(mtmp)->revivals++;
@@ -814,12 +824,21 @@ struct monst *mtmp;
 	else mtmp->mtame--;
 
 	if (mtmp->mtame && !mtmp->isminion)
-		EDOG(mtmp)->abuse++;
+	    EDOG(mtmp)->abuse++;
 
-	if (mtmp->mtame && rn2(mtmp->mtame)) yelp(mtmp);
-	else growl(mtmp);	/* give them a moment's worry */
+	if (!mtmp->mtame && mtmp->mleashed) {
+	    pline("%s breaks loose of %s leash!", Monnam(mtmp), mhis(mtmp));
+	    m_unleash(mtmp);
+	}
+
+	/* don't make a sound if pet is in the middle of leaving the level */
+	/* newsym isn't necessary in this case either */
+	if (mtmp->mx != 0) {
+	    if (mtmp->mtame && rn2(mtmp->mtame)) yelp(mtmp);
+	    else growl(mtmp);	/* give them a moment's worry */
 	
-	if (!mtmp->mtame) newsym(mtmp->mx, mtmp->my);
+	    if (!mtmp->mtame) newsym(mtmp->mx, mtmp->my);
+	}
 }
 
 #endif /* OVLB */

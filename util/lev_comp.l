@@ -1,5 +1,5 @@
 %{
-/*	SCCS Id: @(#)lev_lex.c	3.3	96/05/16	*/
+/*	SCCS Id: @(#)lev_lex.c	3.3	2000/12/22	*/
 /*	Copyright (c) 1989 by Jean-Christophe Collet */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -231,6 +231,7 @@ shortsighted	{ yylval.i=SHORTSIGHTED; return FLAG_TYPE; }
 		  return STRING; }
 \n		{ line_number++; }
 [ \t]+		;
+'\\.'		{ yylval.i = yytext[2]; return CHAR; }
 '.'		{ yylval.i = yytext[1]; return CHAR; }
 .		{ return yytext[0]; }
 %%

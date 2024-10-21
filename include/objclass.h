@@ -68,14 +68,14 @@ struct objclass {
 				 objects[otmp->otyp].oc_material <= MITHRIL)
 
 /* primary damage: fire/rust/--- */
-/* is_flammable() in mkobj.c */
+/* is_flammable(otmp), is_rottable(otmp) in mkobj.c */
 #define is_rustprone(otmp)	(objects[otmp->otyp].oc_material == IRON)
 
 /* secondary damage: rot/acid/acid */
-#define is_rottable(otmp) is_flammable(otmp) /* we might want to change this */
 #define is_corrodeable(otmp)	(objects[otmp->otyp].oc_material == COPPER || objects[otmp->otyp].oc_material == IRON)
 
-#define is_damageable(otmp) (is_rustprone(otmp) || is_flammable(otmp) || is_corrodeable(otmp))
+#define is_damageable(otmp) (is_rustprone(otmp) || is_flammable(otmp) || \
+				is_rottable || is_corrodeable(otmp))
 
 	schar	oc_subtyp;
 #define oc_skill	oc_subtyp   /* Skills of weapons, spellbooks, tools, gems */

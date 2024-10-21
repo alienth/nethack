@@ -53,6 +53,7 @@ struct flag {
 	boolean  mon_moving;	/* monsters' turn to move */
 	boolean  move;
 	boolean  mv;
+	boolean  bypasses;	/* bypass flag is set on at least one fobj */
 	boolean  nap;		/* `timed_delay' option for display effects */
 	boolean  nopick;	/* do not pickup objects (as when running) */
 	boolean  null;		/* OK to send nulls to the terminal */
@@ -74,6 +75,7 @@ struct flag {
 	boolean  silent;	/* whether the bell rings or not */
 	boolean  sortpack;	/* sorted inventory */
 	boolean  soundok;	/* ok to tell about sounds heard */
+	boolean  sparkle;	/* show "resisting" special FX (Scott Bigham) */
 	boolean  standout;	/* use standout for --More-- */
 	boolean  time;		/* display elapsed 'time' */
 	boolean  tombstone;	/* print tombstone */
@@ -87,8 +89,10 @@ struct flag {
 #define NEW_MOON	0
 #define FULL_MOON	4
 	unsigned no_of_wizards; /* 0, 1 or 2 (wizard and his shadow) */
+	boolean  travel;	/* find way automatically to u.tx,u.ty */
 	unsigned run;		/* 0: h (etc), 1: H (etc), 2: fh (etc) */
 				/* 3: FH, 4: ff+, 5: ff-, 6: FF+, 7: FF- */
+				/* 8: travel */
 	unsigned long warntype; /* warn_of_mon monster type M2 */
 	int	 warnlevel;
 	int	 djinni_count, ghost_count;	/* potion effect tuning */
@@ -133,6 +137,7 @@ struct flag {
 	int	 initrace;	/* starting race      (index into races[])   */
 	int	 initgend;	/* starting gender    (index into genders[]) */
 	int	 initalign;	/* starting alignment (index into aligns[])  */
+	int	 randomall;	/* randomly assign everything not specified */
 	int	 pantheon;	/* deity selection for priest character */
 };
 
@@ -156,14 +161,18 @@ struct instance_flags {
 	boolean  news;		/* print news */
 	boolean  window_inited; /* true if init_nhwindows() completed */
 	int      purge_monsters;	/* # of dead monsters still on fmon list */
+	int *opt_booldup;	/* for duplication of boolean opts in config file */
+	int *opt_compdup;	/* for duplication of compound opts in config file */
 
 #ifdef WIZARD
 	boolean  sanity_check;	/* run sanity checks */
+	boolean  mon_polycontrol;	/* debug: control monster polymorphs */
 #endif
 #ifdef TEXTCOLOR
-	boolean  hilite_pet;	/* hilight pets on monochome displays */
 	boolean  use_color;	/* use color graphics */
 #endif
+	boolean  hilite_pet;	/* hilight pets on supported environments */
+	boolean  use_inverse;	/* inverse attribute is available on display */
 #ifdef MAC_GRAPHICS_ENV
 	boolean  large_font;	/* draw in larger fonts (say, 12pt instead
 				   of 9pt) */
@@ -206,6 +215,7 @@ struct instance_flags {
 	boolean lan_mail;	/* mail is initialized */
 	boolean lan_mail_fetched; /* mail is awaiting display */
 #endif
+	uchar bouldersym;	/* alternative boulder symbol */
 };
 
 extern NEARDATA struct flag flags;
