@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)wizard.c	3.3	99/03/29	*/
+/*	SCCS Id: @(#)wizard.c	3.3	2001/12/06	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -240,7 +240,12 @@ strategy(mtmp)
 {
 	long strat, dstrat;
 
-	if(!is_covetous(mtmp->data)) return(STRAT_NONE);
+	if (!is_covetous(mtmp->data) ||
+		/* perhaps a shopkeeper has been polymorphed into a master
+		   lich; we don't want it teleporting to the stairs to heal
+		   because that will leave its shop untended */
+		(mtmp->isshk && inhishop(mtmp)))
+	    return STRAT_NONE;
 
 	switch((mtmp->mhp*3)/mtmp->mhpmax) {	/* 0-3 */
 

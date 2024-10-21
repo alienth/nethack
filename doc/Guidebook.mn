@@ -4,13 +4,13 @@
 .ds vr "NetHack 3.3
 .ds f0 "\*(vr
 .ds f1
-.ds f2 "August 2, 2000
+.ds f2 "January 1, 2002
 .mt
 A Guide to the Mazes of Menace
 (Guidebook for NetHack 3.3)
 .au
 Eric S. Raymond
-(Extensively edited and expanded for 3.0 by Mike Threepoint)
+(Extensively edited and expanded for 3.3)
 .hn 1
 Introduction
 
@@ -228,7 +228,8 @@ experience level, see below).
 .lp Strength
 A measure of your character's strength; one of your six basic
 attributes.  Your attributes can range from 3 to 18 inclusive
-(occasionally you may get super-strengths of the form 18/xx).  The
+(occasionally you may get super-strengths of the form 18/xx, and magic can
+cause attributes to exceed the normal limits).  The
 higher your strength, the stronger you are.  Strength affects how
 successfully you perform physical tasks, how much damage you do in
 combat, and how much loot you can carry.
@@ -365,6 +366,10 @@ An opulent throne.
 Letters and certain other symbols represent the various inhabitants
 of the Mazes of Menace.  Watch out, they can be nasty and vicious.
 Sometimes, however, they can be helpful.
+.lp I
+This marks the last known location of an invisible or otherwise unseen
+monster.  Note that the monster could have moved.  The 'f' and 'm' commands
+may be useful here.
 .pg
 You need not memorize all these symbols; you can ask the game what any
 symbol represents with the `/' command (see the next section for
@@ -430,11 +435,12 @@ always gives any additional information available about that name.
 .lp &
 Tell what a command does.
 .lp <
-Go up to the previous level (if you are on the staircase or ladder).
+Go up to the previous level (if you are on a staircase or ladder).
 .lp >
-Go down to the next level (if you are on the staircase or ladder).
+Go down to the next level (if you are on a staircase or ladder).
 .lp [yuhjklbn]
-Go one step in the direction indicated (see Figure 2).  If you can sense
+Go one step in the direction indicated (see Figure 2).  If you sense
+or remember
 a monster there, you will fight the monster instead.  Only these
 one-step movement commands cause you to fight monsters; the others
 (below) are ``safe.''
@@ -466,6 +472,11 @@ Prefix:  move far, no pickup.
 Prefix:  move until something interesting is found.
 .lp "G[yuhjklbn] or <CONTROL->[yuhjklbn]
 Prefix:  same as `g', but forking of corridors is not considered interesting.
+.lp _
+Travel to a map location via a shortest-path algorithm. Stops on most of 
+the same conditions as the Rush commands do. For ports with mouse 
+support, the command is also invoked when a mouse-click takes place on a 
+location further than 1 cell away from the current position.
 .lp .
 Rest, do nothing for one turn.
 .lp a
@@ -598,7 +609,7 @@ the various deities in your game.
 .lp z
 Zap a wand.  To aim at yourself, use `.' for the direction.
 .lp Z
-Zap (cast) a spell.
+Zap (cast) a spell.  To cast at yourself, use `.' for the direction.
 .lp ^Z
 Suspend the game
 .ux " versions with job control only)." (
@@ -652,7 +663,8 @@ option is ``on'').
 .lp #chat
 Talk to someone.
 .lp #conduct
-List which challenges you have adhered to.
+List which challenges you have adhered to.  See the section below entitled
+``Conduct'' for details.
 .lp #dip
 Dip an object into something.
 .lp #enhance
@@ -870,6 +882,15 @@ If you see a monster and you wish to fight it, just attempt to walk
 into it.  Many monsters you find will mind their own business unless
 you attack them.  Some of them are very dangerous when angered.
 Remember:  discretion is the better part of valor.
+.pg
+If you can't see a monster (if it is invisible, or if you are blinded),
+the symbol `I' will be shown when you learn of its presence.
+If you attempt to walk into it, you will try to fight it just like
+a monster that you can see; of course,
+if the monster has moved, you will attack empty air.  If you guess
+that the monster has moved and you don't wish to fight, you can use the `m'
+command to move without fighting; likewise, if you don't remember a monster
+but want to try fighting anyway, you can use the `f' command.
 .hn 2
 Your pet
 .pg
@@ -1032,7 +1053,7 @@ exchanges your primary (the one being wielded) and secondary weapons.
 And if you have proficiency in the ``two weapon combat'' skill, you
 may wield both primary and secondary weapons simultaneously; use the
 `#twoweapon' extended command to engage or disengage that.  Only
-some types of characters (barbarians, for instance), have the necessary
+some types of characters (barbarians, for instance) have the necessary
 skill available.  Even with that skill, using two weapons at once incurs
 a penalty in the chance to hit your target compared to using just one
 weapon at a time.
@@ -1043,7 +1064,7 @@ allows you to unwield the current weapon in addition to taking off
 other worn items.
 .pg
 Those of you in the audience who are AD&D players, be aware that each
-weapon which exists in AD&D does roughly the same damage to monsters in
+weapon which existed in AD&D does roughly the same damage to monsters in
 NetHack.  Some of the more obscure weapons (such as the \fIaklys\fP,
 \fIlucern hammer\fP, and \fIbec-de-corbin\fP) are defined in an
 appendix to \fIUnearthed Arcana\fP, an AD&D supplement.
@@ -1073,23 +1094,26 @@ also an option,
 which has NetHack choose another item to automatically fill your
 quiver when the inventory slot used for `Q' runs out.
 .pg
-Some characters will throw multiple items in a single action.  Rangers,
-for instance, or anyone who achieves a high level of proficiency in
-the relevant weapon skill (in bow skill if you're wielding one to
-shoot arrows, or in sling skill if you're wielding one to shoot stones).
-There is little you can do
-to control this; if NetHack decides that you'll be shooting 3 arrows
-on the current shot, then three arrows will travel in the direction
-you've indicated, even if the first or second succeeds in killing the
-target.  You can explicitly limit the number of shots by using a numeric
-prefix before the `t' or `f' command.
+Some characters have the ability fire a volley of multiple items in a
+single turn.  Knowing how to load several rounds of ammunition at
+once -- or hold several missiles in your hand -- and still hit a
+target is not an easy task.  Rangers are among those who are adept
+at this task, as are those with a high level of proficiency in the
+relevant weapon skill (in bow skill if you're wielding one to
+shoot arrows, in crossbow skill if you're wielding one to shoot bolts,
+or in sling skill if you're wielding one to shoot stones).
+The number of items that the character has a chance to fire varies from
+turn to turn.  You can explicitly limit the number of shots by using a
+numeric prefix before the `t' or `f' command.
 For example, ``2f'' (or ``n2f'' if using
 .op number_pad
 mode) would ensure that at most 2 arrows are shot
-even if NetHack decides that your skill warrants 3.  If you specify
+even if you could have fired 3.  If you specify
 a larger number than would have been shot (``4f'' in this example),
 you'll just end up shooting the same number (3, here) as if no limit
-had been specified.
+had been specified.  Once the volley is in motion, all of the items
+will travel in the same direction; if the first ones kill a monster,
+the others can still continue beyond that spot.
 .hn 3
 Weapon proficiency
 .pg
@@ -1312,6 +1336,12 @@ your naked mind.  Releasing the magical energy releases some of your
 memory of the spell with it.  Each time you cast a spell, your
 familiarity with it will dwindle, until you eventually forget the
 details completely and must relearn it.
+.pg
+Some spells are
+directional\(emyou must give a direction in which to cast them.  You can also
+cast them at yourself (just give a `.' or `s' for the direction). Be warned,
+however, for this is often unwise.  Other spells are nondirectional\(emthey
+don't require a direction.
 .pg
 Just as weapons are divided into groups in which a character can become
 proficient (to varying degrees), spells are similarly grouped.
@@ -1536,14 +1566,15 @@ Using a configuration file
 Any line in the configuration file starting with ``OPTIONS='' may be
 filled out with options in the same syntax as in NETHACKOPTIONS.
 Any line starting with ``DUNGEON='', ``EFFECTS='', ``MONSTERS='',
-``OBJECTS='', or ``TRAPS=''
+``OBJECTS='', ``TRAPS='', or ``BOULDER=''
 is taken as defining the corresponding
 .op dungeon,
 .op effects,
 .op monsters,
 .op objects
-or
 .op traps
+or
+.op boulder
 option in a different syntax,
 a sequence of decimal numbers giving the character position
 in the current font to be used in displaying each entry.
@@ -1580,6 +1611,8 @@ Use BIOS calls to update the screen
 display quickly and to read the keyboard (allowing the use of arrow
 keys to move) on machines with an IBM PC compatible BIOS ROM (default off,
 OS/2, PC, and ST NetHack only).
+.lp boulder
+Set the character used to display boulders (default is rock class symbol).
 .lp catname
 Name your starting cat (ex. ``catname:Morris'').
 Cannot be set with the `O' command.
@@ -1756,47 +1789,47 @@ object classes rather than a character prompt, and then a menu of matching
 objects for selection.
 .lp menu_deselect_all
 Menu character accelerator to deselect all items in a menu.
-Implemented by the X11 and tty ports.
+Implemented by the Amiga, Gem, X11 and tty ports.
 Default '-'.
 .lp menu_deselect_page
 Menu character accelerator deselect all items on this page of a menu.
-Implemented only by the tty port.
+Implemented by the Amiga, Gem and tty ports.
 Default '\e'.
 .lp menu_first_page
 Menu character accelerator to jump to the first page in a menu.
-Implemented only by the tty port.
+Implemented by the Amiga, Gem and tty ports.
 Default '^'.
 .lp menu_invert_all
 Menu character accelerator to invert all items in a menu.
-Implemented by the X11 and tty ports.
+Implemented by the Amiga, Gem, X11 and tty ports.
 Default '@'.
 .lp menu_invert_page
 Menu character accelerator to invert all items on this page of a menu.
-Implemented only by the tty port.
+Implemented by the Amiga, Gem and tty ports.
 Default '~'.
 .lp menu_last_page
 Menu character accelerator to jump to the last page in a menu.
-Implemented only by the tty port.
+Implemented by the Amiga, Gem and tty ports.
 Default '|'.
 .lp menu_next_page
 Menu character accelerator to goto the next menu page.
-Implemented only by the tty port.
+Implemented by the Amiga, Gem and tty ports.
 Default '>'.
 .lp menu_previous_page 
 Menu character accelerator to goto the previous menu page.
-Implemented only by the tty port.
+Implemented by the Amiga, Gem and tty ports.
 Default '<'.
 .lp menu_search
 Menu character accelerator to search for a menu item.
-Implemented only by the X11 port.
+Implemented by the Amiga, Gem and X11 ports.
 Default ':'.
 .lp menu_select_all
 Menu character accelerator to select all items in a menu.
-Implemented by the X11 and tty ports.
+Implemented by the Amiga, Gem, X11 and tty ports.
 Default '.'.
 .lp menu_select_page
 Menu character accelerator to select all items on this page of a menu.
-Implemented only by the tty port.
+Implemented by the Amiga, Gem and tty ports.
 Default ','.
 .lp monsters
 Set the characters used to display monster classes (default
@@ -1919,6 +1952,9 @@ Show your approximate accumulated score on bottom line (default off).
 Suppress terminal beeps (default on).
 .lp sortpack
 Sort the pack contents by type when displaying inventory (default on).
+.lp sparkle
+Display a sparkly effect when a monster (including yourself) is hit by an
+attack to which it is resistant (default on).
 .lp standout
 Boldface monsters and ``\fB--More--\fP'' (default off).
 .lp suppress_alert
@@ -2220,24 +2256,25 @@ center;
 c c c.
 .\"TABLE_START
 Adam Aronow	Irina Rempt-Drijfhout	Mike Gallop
-Andy Church	Izchak Miller	Mike Passaretti
-Andy Swanson	Janet Walz	Mike Stephenson
-Ari Huttunen	Janne Salmijarvi	Norm Meluch
-Barton House	Jean-Christophe Collet	Olaf Seibert
-Benson I. Margulies	Jochen Erwied	Pat Rankin
-Bill Dyer	John Kallen	Paul Winner
-Boudewijn Waijers	John Rupley	Pierre Martineau
-Bruce Cox	John S. Bien	Ralf Brown
-Bruce Holloway	Johnny Lee	Richard Addison
-Bruce Mewborne	Jon W{tte	Richard Beigel
-Carl Schelin	Jonathan Handler	Richard P. Hughey
-Chris Russo	Joshua Delahunty	Rob Menke
-David Cohrs	Keizo Yamamoto	Robin Johnson
-David Damerell	Ken Arromdee	Roland McGrath
-David Gentzel	Ken Lorber	Ron Van Iwaarden
-David Hairston	Ken Washikita	Ronnen Miller
-Dean Luick	Kevin Darcy	Ross Brown
-Del Lamb	Kevin Hugo	Sascha Wostmann
+Andreas Dorn	Izchak Miller	Mike Passaretti
+Andy Church	J. Ali Harlow	Mike Stephenson
+Andy Swanson	Janet Walz	Norm Meluch
+Ari Huttunen	Janne Salmijarvi	Olaf Seibert
+Barton House	Jean-Christophe Collet	Pat Rankin
+Benson I. Margulies	Jochen Erwied	Paul Winner
+Bill Dyer	John Kallen	Pierre Martineau
+Boudewijn Waijers	John Rupley	Ralf Brown
+Bruce Cox	John S. Bien	Richard Addison
+Bruce Holloway	Johnny Lee	Richard Beigel
+Bruce Mewborne	Jon W{tte	Richard P. Hughey
+Carl Schelin	Jonathan Handler	Rob Menke
+Chris Russo	Joshua Delahunty	Robin Johnson
+David Cohrs	Keizo Yamamoto	Roland McGrath
+David Damerell	Ken Arromdee	Ron Van Iwaarden
+David Gentzel	Ken Lorber	Ronnen Miller
+David Hairston	Ken Washikita	Ross Brown
+Dean Luick	Kevin Darcy	Sascha Wostmann
+Del Lamb	Kevin Hugo	Scott Bigham
 Deron Meranda	Kevin Sitze	Scott R. Turner
 Dylan O'Donnell	Kevin Smolkowski	Stephen Spackman
 Eric Backus	Kevin Sweet	Stephen White

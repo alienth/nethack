@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)end.c	3.3	2000/06/10	*/
+/*	SCCS Id: @(#)end.c	3.3	2001/09/24	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -52,7 +52,6 @@ extern void FDECL(nethack_exit,(int));
 #define done_stopprint program_state.stopprint
 
 #ifdef AMIGA
-void NDECL(clear_icon);
 # define NH_abort()	Abort(0)
 #else
 # ifdef SYSV
@@ -226,6 +225,8 @@ register struct monst *mtmp;
 		u.ugrave_arise = urace.mummynum;
 	else if (mtmp->data->mlet == S_VAMPIRE && Race_if(PM_HUMAN))
 		u.ugrave_arise = PM_VAMPIRE;
+	else if (mtmp->data == &mons[PM_GHOUL])
+		u.ugrave_arise = PM_GHOUL;
 	if (u.ugrave_arise >= LOW_PM &&
 				(mvitals[u.ugrave_arise].mvflags & G_GENOD))
 		u.ugrave_arise = NON_PM;
@@ -348,6 +349,11 @@ int how;
 	    u.uhunger = 500;
 	    newuhs(FALSE);
 	}
+	/* cure impending doom of sickness hero won't have time to fix */
+	if ((Sick & TIMEOUT) == 1) {
+	    u.usick_type = 0;
+	    Sick = 0;
+	}
 	if (how == CHOKING) init_uhunger();
 	nomovemsg = "You survived that attempt on your life.";
 	flags.move = 0;
@@ -370,18 +376,19 @@ struct obj *list;	/* inventory or container contents */
     register struct obj *obj;
     register int i;
 
-    /* find amulets and gems, ignoring artifacts except for the AoY. */
+    /* find amulets and gems, ignoring all artifacts */
     for (obj = list; obj; obj = obj->nobj)
 	if (Has_contents(obj)) {
 	    get_valuables(obj->cobj);
+	} else if (obj->oartifact) {
+	    continue;
 	} else if (obj->oclass == AMULET_CLASS) {
 	    i = obj->otyp - FIRST_AMULET;
 	    if (!amulets[i].count) {
 		amulets[i].count = obj->quan;
 		amulets[i].typ = obj->otyp;
 	    } else amulets[i].count += obj->quan; /* always adds one */
-	} else if (obj->oclass == GEM_CLASS && obj->otyp < LUCKSTONE &&
-		!obj->oartifact) {
+	} else if (obj->oclass == GEM_CLASS && obj->otyp < LUCKSTONE) {
 	    i = min(obj->otyp, LAST_GEM + 1) - FIRST_GEM;
 	    if (!gems[i].count) {
 		gems[i].count = obj->quan;
@@ -476,13 +483,14 @@ int how;
 	winid endwin = WIN_ERR;
 	boolean bones_ok, have_windows = iflags.window_inited;
 	struct obj *corpse = (struct obj *)0;
+	long umoney;
 
 	/* kilbuf: used to copy killer in case it comes from something like
 	 *	xname(), which would otherwise get overwritten when we call
 	 *	xname() when listing possessions
 	 * pbuf: holds Sprintf'd output for raw_print and putstr
 	 */
-	if (how == ASCENDED)
+	if (how == ASCENDED || (!killer && how == GENOCIDED))
 		killer_format = NO_KILLER_PREFIX;
 	/* Avoid killed by "a" burning or "a" starvation */
 	if (!killer && (how == STARVING || how == BURNING))
@@ -573,7 +581,8 @@ die:
 		u.ugrave_arise = (NON_PM - 2);	/* leave no corpse */
 	    else if (how == STONING)
 		u.ugrave_arise = (NON_PM - 1);	/* statue instead of corpse */
-	    else if (u.ugrave_arise == NON_PM) {
+	    else if (u.ugrave_arise == NON_PM &&
+		     !(mvitals[u.umonnum].mvflags & G_NOCORPSE)) {
 		corpse = mk_named_object(CORPSE, &mons[u.umonnum],
 				       u.ux, u.uy, plname);
 		Sprintf(pbuf, "%s, %s%s", plname,
@@ -604,9 +613,7 @@ die:
 	} else	taken = FALSE;	/* lint; assert( !bones_ok ); */
 
 	clearlocks();
-#ifdef AMIGA
-	clear_icon();
-#endif
+
 	if (have_windows) display_nhwindow(WIN_MESSAGE, FALSE);
 
 	if (strcmp(flags.end_disclose, "none") && how != PANICKED)
@@ -619,8 +626,16 @@ die:
 	    long tmp;
 	    int deepest = deepest_lev_reached(FALSE);
 
-	    u.ugold += hidden_gold();	/* accumulate gold from containers */
-	    tmp = u.ugold - u.ugold0;
+#ifndef GOLDOBJ
+	    umoney = u.ugold;
+	    tmp = u.ugold0;
+#else
+	    umoney = money_cnt(invent);
+	    tmp = u.umoney0;
+#endif
+	    umoney += hidden_gold();	/* accumulate gold from containers */
+	    tmp = umoney - tmp;		/* net gain */
+
 	    if (tmp < 0L)
 		tmp = 0L;
 	    if (how < PANICKED)
@@ -641,6 +656,14 @@ die:
 		ensure that it isn't used again */
 	    corpse = (struct obj *)0;
 	}
+
+	/* update gold for the rip output, which can't use hidden_gold()
+	   (containers will be gone by then if bones just got saved...) */
+#ifndef GOLDOBJ
+	u.ugold = umoney;
+#else
+	/* FIXME */
+#endif
 
 	/* clean up unneeded windows */
 	if (have_windows) {
@@ -782,7 +805,7 @@ die:
 
 	if (!done_stopprint) {
 	    Sprintf(pbuf, "and %ld piece%s of gold, after %ld move%s.",
-		    u.ugold, plur(u.ugold), moves, plur(moves));
+		    umoney, plur(umoney), moves, plur(moves));
 	    putstr(endwin, 0, pbuf);
 	}
 	if (!done_stopprint) {
@@ -907,9 +930,15 @@ list_vanquished()
 			Sprintf(buf, "%s%s",
 				!type_is_pname(&mons[i]) ? "The " : "",
 				mons[i].mname);
-			if (nkilled > 1)
-			    Sprintf(eos(buf)," (%d time%s)",
-				    nkilled, plur(nkilled));
+			if (nkilled > 1) {
+			    switch (nkilled) {
+	    			case 2:  Sprintf(eos(buf)," (twice)");  break;
+	    			case 3:  Sprintf(eos(buf)," (thrice)");  break;
+	    			default: Sprintf(eos(buf)," (%d time%s)",
+				    		nkilled, plur(nkilled));
+				break;
+			    }
+			}
 		    } else {
 			/* trolls or undead might have come back,
 			   but we don't keep track of that */

@@ -764,7 +764,7 @@ DLBOBJS        = $(O)dlb_main.o $(O)dlb.o $(O)alloc.o $(O)panic.o
 #
 
 OBJ01 =	$(O)alloc.o	$(RANDOM)	$(O)decl.o     	$(O)objects.o	\
-	$(O)muse.o	$(O)display.o	$(O)vision.o	\
+	$(O)muse.o	$(O)display.o	$(O)vision.o	$(O)mapglyph.o  \
 	$(O)rect.o	$(O)vis_tab.o	$(O)monst.o	$(O)wintty.o	\
 	$(O)files.o	$(O)sys.o	$(O)monstr.o	$(O)minion.o	\
 	$(O)worm.o	$(O)detect.o 	$(O)exper.o	$(O)mplayer.o	\
@@ -1823,6 +1823,7 @@ $(O)exper.o:     $(PCHO) $(SRC)\exper.c    $(HACK_H)
 $(O)extralev.o:  $(PCHO) $(SRC)\extralev.c $(HACK_H)
 $(O)files.o:	 $(PCHO) $(SRC)\files.c    $(HACK_H) $(DLB_H)
 $(O)fountain.o:  $(PCHO) $(SRC)\fountain.c $(HACK_H)
+$(O)mapglyph.o:  $(PCHO) $(SRC)\mapglyph.c $(HACK_H)
 $(O)minion.o:    $(PCHO) $(SRC)\minion.c   $(HACK_H) $(EMIN_H) $(EPRI_H)
 $(O)mklev.o:     $(PCHO) $(SRC)\mklev.c    $(HACK_H)
 $(O)mkmap.o:     $(PCHO) $(SRC)\mkmap.c    $(HACK_H) $(SP_LEV_H)

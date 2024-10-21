@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)mkobj.c	3.3	2000/02/19	*/
+/*	SCCS Id: @(#)mkobj.c	3.3	2001/12/03	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -78,26 +78,26 @@ const struct icp hellprobs[] = {
 };
 
 struct obj *
-mkobj_at(let,x,y, artif)
+mkobj_at(let, x, y, artif)
 char let;
-int x,y;
+int x, y;
 boolean artif;
 {
-	register struct obj *otmp;
+	struct obj *otmp;
 
-	otmp = mkobj(let,artif);
+	otmp = mkobj(let, artif);
 	place_object(otmp, x, y);
 	return(otmp);
 }
 
 struct obj *
-mksobj_at(otyp,x,y,init)
-int otyp,x,y;
-boolean init;
+mksobj_at(otyp, x, y, init, artif)
+int otyp, x, y;
+boolean init, artif;
 {
-	register struct obj *otmp;
+	struct obj *otmp;
 
-	otmp = mksobj(otyp,init,TRUE);
+	otmp = mksobj(otyp, init, artif);
 	place_object(otmp, x, y);
 	return(otmp);
 }
@@ -107,7 +107,7 @@ mkobj(oclass, artif)
 char oclass;
 boolean artif;
 {
-	register int tprob, i, prob = rnd(1000);
+	int tprob, i, prob = rnd(1000);
 
 	if(oclass == RANDOM_CLASS) {
 		const struct icp *iprobs =
@@ -138,21 +138,21 @@ mkbox_cnts(box)
 struct obj *box;
 {
 	register int n;
-	register struct obj *otmp, *gold = 0;
+	register struct obj *otmp;
 
 	box->cobj = (struct obj *) 0;
 
-	switch(box->otyp) {
-		case ICE_BOX:		n = 20; break;
-		case CHEST:		n = 5; break;
-		case LARGE_BOX:		n = 3; break;
-		case SACK:
-		case OILSKIN_SACK:
+	switch (box->otyp) {
+	case ICE_BOX:		n = 20; break;
+	case CHEST:		n = 5; break;
+	case LARGE_BOX:		n = 3; break;
+	case SACK:
+	case OILSKIN_SACK:
 				/* initial inventory: sack starts out empty */
 				if (moves <= 1 && !in_mklev) { n = 0; break; }
 				/*else FALLTHRU*/
-		case BAG_OF_HOLDING:	n = 1; break;
-		default:		n = 0; break;
+	case BAG_OF_HOLDING:	n = 1; break;
+	default:		n = 0; break;
 	}
 
 	for (n = rn2(n+1); n > 0; n--) {
@@ -178,13 +178,7 @@ struct obj *box;
 		if (otmp->oclass == GOLD_CLASS) {
 		    /* 2.5 x level's usual amount; weight adjusted below */
 		    otmp->quan = (long)(rnd(level_difficulty()+2) * rnd(75));
-		    if (gold) {			/* gold already in this box */
-			gold->quan += otmp->quan;	/* merge */
-			dealloc_obj(otmp);	/* note: not yet in any chain */
-			continue;
-		    } else {
-			gold = otmp;		/* remember this object */
-		    }
+		    otmp->owt = weight(otmp);
 		} else while (otmp->otyp == ROCK) {
 		    otmp->otyp = rnd_class(DILITHIUM_CRYSTAL, LOADSTONE);
 		    if (otmp->quan > 2L) otmp->quan = 1L;
@@ -199,10 +193,8 @@ struct obj *box;
 			    otmp->otyp = rnd_class(WAN_LIGHT, WAN_LIGHTNING);
 		}
 	    }
-	    add_to_container(box, otmp);
+	    (void) add_to_container(box, otmp);
 	}
-	if (gold) gold->owt = weight(gold);	/* quantity was diddled */
-	return;
 }
 
 int
@@ -609,7 +601,8 @@ boolean artif;
 			otmp->corpsenm = rndmonnum();
 			if (!verysmall(&mons[otmp->corpsenm]) &&
 				rn2(level_difficulty()/2 + 10) > 10)
-			    add_to_container(otmp, mkobj(SPBOOK_CLASS,FALSE));
+			    (void) add_to_container(otmp,
+						    mkobj(SPBOOK_CLASS,FALSE));
 		}
 		break;
 	case GOLD_CLASS:
@@ -627,27 +620,32 @@ boolean artif;
 }
 
 /*
- * Start a corpse decay or revive timer.  This assumes that the corpse
- * was just dropped and its age is 0.
+ * Start a corpse decay or revive timer.
+ * This takes the age of the corpse into consideration as of 3.3.2.
  */
 void
 start_corpse_timeout(body)
 	struct obj *body;
 {
-	long when;
+	long when; 		/* rot away when this old */
+	long corpse_age;	/* age of corpse          */
 	int rot_adjust;
 	short action;
 
 #define TAINT_AGE (50L)		/* age when corpses go bad */
 #define TROLL_REVIVE_CHANCE 37	/* 1/37 chance for 50 turns ~ 75% chance */
-#define ROT_AGE (250L)	/* age when corpses rot away */
+#define ROT_AGE (250L)		/* age when corpses rot away */
 
 	/* lizards and lichen don't rot or revive */
 	if (body->corpsenm == PM_LIZARD || body->corpsenm == PM_LICHEN) return;
 
 	action = ROT_CORPSE;		/* default action: rot away */
-	when = ROT_AGE;			/* rot away when this old */
 	rot_adjust = in_mklev ? 25 : 10;	/* give some variation */
+	corpse_age = monstermoves - body->age;
+	if (corpse_age > ROT_AGE)
+		when = rot_adjust;
+	else
+		when = ROT_AGE - corpse_age;
 	when += (long)(rnz(rot_adjust) - rot_adjust);
 
 	if (is_rider(&mons[body->corpsenm])) {
@@ -659,7 +657,7 @@ start_corpse_timeout(body)
 		for (when = 12L; when < 500L; when++)
 		    if (!rn2(3)) break;
 
-	} else if (mons[body->corpsenm].mlet == S_TROLL) {
+	} else if (mons[body->corpsenm].mlet == S_TROLL && !body->norevive) {
 		long age;
 		for (age = 2; age <= TAINT_AGE; age++)
 		    if (!rn2(TROLL_REVIVE_CHANCE)) {	/* troll revives */
@@ -668,7 +666,8 @@ start_corpse_timeout(body)
 			break;
 		    }
 	}
-
+	
+	if (body->norevive) body->norevive = 0;
 	(void) start_timer(when, TIMER_OBJECT, action, (genericptr_t)body);
 }
 
@@ -819,9 +818,15 @@ register struct obj *obj;
 
 		return wt + cwt;
 	}
-	if (obj->otyp == CORPSE && obj->corpsenm >= LOW_PM)
-		return (int)obj->quan * mons[obj->corpsenm].cwt;
-	else if (obj->oclass == GOLD_CLASS)
+	if (obj->otyp == CORPSE && obj->corpsenm >= LOW_PM) {
+		long long_wt = obj->quan * (long) mons[obj->corpsenm].cwt;
+
+		wt = (long_wt > LARGEST_INT) ? LARGEST_INT : (int)long_wt;
+		if (obj->oeaten) wt = eaten_stat(wt, obj);
+		return wt;
+	} else if (obj->oclass == FOOD_CLASS && obj->oeaten) {
+		return eaten_stat((int)obj->quan * wt, obj);
+	} else if (obj->oclass == GOLD_CLASS)
 		return (int)((obj->quan + 50L) / 100L);
 	else if (obj->otyp == HEAVY_IRON_BALL && obj->owt != 0)
 		return((int)(obj->owt));	/* kludge for "very" heavy iron ball */
@@ -832,8 +837,9 @@ static int treefruits[] = {APPLE,ORANGE,PEAR,BANANA,EUCALYPTUS_LEAF};
 
 struct obj *
 rnd_treefruit_at(x,y)
+int x, y;
 {
-	return mksobj_at(treefruits[rn2(SIZE(treefruits)-1)],x,y,TRUE);
+	return mksobj_at(treefruits[rn2(SIZE(treefruits))], x, y, TRUE, FALSE);
 }
 #endif /* OVL0 */
 #ifdef OVLB
@@ -845,11 +851,12 @@ int x, y;
 {
     register struct obj *gold = g_at(x,y);
 
-    if (amount <= 0L) amount = (long)(1 + rnd(level_difficulty()+2) * rnd(30));
+    if (amount <= 0L)
+	amount = (long)(1 + rnd(level_difficulty()+2) * rnd(30));
     if (gold) {
 	gold->quan += amount;
     } else {
-	gold = mksobj_at(GOLD_PIECE,x,y,TRUE);
+	gold = mksobj_at(GOLD_PIECE, x, y, TRUE, FALSE);
 	gold->quan = amount;
     }
     gold->owt = weight(gold);
@@ -886,7 +893,7 @@ boolean init;
 
 	if (objtype != CORPSE && objtype != STATUE)
 	    impossible("making corpstat type %d", objtype);
-	otmp = mksobj_at(objtype, x, y, init);
+	otmp = mksobj_at(objtype, x, y, init, FALSE);
 	if (otmp) {
 	    if (mtmp) {
 		struct obj *otmp2;
@@ -1007,7 +1014,7 @@ register int x, y;
 
 	/* player statues never contain books */
 	initialize_it = (objtype != STATUE);
-	if ((otmp = mksobj_at(objtype, x, y, initialize_it)) != 0) {
+	if ((otmp = mksobj_at(objtype, x, y, initialize_it, FALSE)) != 0) {
 	    /* tt_oname will return null if the scoreboard is empty */
 	    if ((otmp2 = tt_oname(otmp)) != 0) otmp = otmp2;
 	}
@@ -1037,7 +1044,18 @@ register struct obj *otmp;
 {
 	int otyp = otmp->otyp;
 
-	if (objects[otyp].oc_oprop == FIRE_RES) return FALSE;
+	if (objects[otyp].oc_oprop == FIRE_RES || otyp == WAN_FIRE)
+		return FALSE;
+
+	return((boolean)(objects[otyp].oc_material <= WOOD &&
+			objects[otyp].oc_material != LIQUID));
+}
+
+boolean
+is_rottable(otmp)
+register struct obj *otmp;
+{
+	int otyp = otmp->otyp;
 
 	return((boolean)(objects[otyp].oc_material <= WOOD &&
 			objects[otyp].oc_material != LIQUID));
@@ -1361,17 +1379,28 @@ add_to_minv(mon, obj)
     return 0;	/* obj on mon's inventory chain */
 }
 
-void
+/*
+ * Add obj to container, make sure obj is "free".  Returns (merged) obj.
+ * The input obj may be deleted in the process.
+ */
+struct obj *
 add_to_container(container, obj)
     struct obj *container, *obj;
 {
+    struct obj *otmp;
+
     if (obj->where != OBJ_FREE)
 	panic("add_to_container: obj not free");
+
+    /* merge if possible */
+    for (otmp = container->cobj; otmp; otmp = otmp->nobj)
+	if (merged(&otmp, &obj)) return (otmp);
 
     obj->where = OBJ_CONTAINED;
     obj->ocontainer = container;
     obj->nobj = container->cobj;
     container->cobj = obj;
+    return (obj);
 }
 
 void

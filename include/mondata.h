@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)mondata.h	3.3	2000/07/14	*/
+/*	SCCS Id: @(#)mondata.h	3.3	2001/02/14	*/
 /* Copyright (c) 1989 Mike Threepoint				  */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -33,12 +33,16 @@
 #define hides_under(ptr)	(((ptr)->mflags1 & M1_CONCEAL) != 0L)
 #define is_hider(ptr)		(((ptr)->mflags1 & M1_HIDE) != 0L)
 #define haseyes(ptr)		(((ptr)->mflags1 & M1_NOEYES) == 0L)
+#define eyecount(ptr)		(!haseyes(ptr) ? 0 : \
+				 ((ptr) == &mons[PM_CYCLOPS] || \
+				  (ptr) == &mons[PM_FLOATING_EYE]) ? 1 : 2)
 #define nohands(ptr)		(((ptr)->mflags1 & M1_NOHANDS) != 0L)
 #define nolimbs(ptr)		(((ptr)->mflags1 & M1_NOLIMBS) == M1_NOLIMBS)
 #define notake(ptr)		(((ptr)->mflags1 & M1_NOTAKE) != 0L)
 #define has_head(ptr)		(((ptr)->mflags1 & M1_NOHEAD) == 0L)
 #define is_whirly(ptr)		((ptr)->mlet == S_VORTEX || \
 				 (ptr) == &mons[PM_AIR_ELEMENTAL])
+#define is_silent(ptr)		((ptr)->msound == MS_SILENT)
 #define unsolid(ptr)		(((ptr)->mflags1 & M1_UNSOLID) != 0L)
 #define mindless(ptr)		(((ptr)->mflags1 & M1_MINDLESS) != 0L)
 #define humanoid(ptr)		(((ptr)->mflags1 & M1_HUMANOID) != 0L)
@@ -168,5 +172,8 @@
 #define vegetarian(ptr)		(vegan(ptr) || \
 				((ptr)->mlet == S_PUDDING &&         \
 				 (ptr) != &mons[PM_BLACK_PUDDING]))
+
+#define befriend_with_obj(ptr, obj) ((obj)->oclass == FOOD_CLASS && \
+				     is_domestic(ptr))
 
 #endif /* MONDATA_H */

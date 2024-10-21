@@ -47,7 +47,7 @@ void FDECL(copy_bytes, (int,int));
 char *FDECL(exepath, (char *));
 #endif
 
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) && !defined(_WIN32)
 extern unsigned _stklen = STKSIZ;
 #endif
 char savename[SAVESIZE]; /* holds relative path of save file from playground */

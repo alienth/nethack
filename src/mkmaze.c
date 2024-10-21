@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)mkmaze.c	3.3	2000/01/03	*/
+/*	SCCS Id: @(#)mkmaze.c	3.3	2001/09/06	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -258,11 +258,9 @@ place_lregion(lx, ly, hx, hy, nlx, nly, nhx, nhy, rtype, lev)
     /* first a probabilistic approach */
 
     oneshot = (lx == hx && ly == hy);
-    for(trycnt = 0; trycnt < 100; trycnt ++) {
-
+    for (trycnt = 0; trycnt < 200; trycnt++) {
 	x = rn1((hx - lx) + 1, lx);
 	y = rn1((hy - ly) + 1, ly);
-
 	if (put_lregion_here(x,y,nlx,nly,nhx,nhy,rtype,oneshot,lev))
 	    return;
     }
@@ -286,14 +284,14 @@ xchar rtype;
 boolean oneshot;
 d_level *lev;
 {
-    if(oneshot) {
+    if (bad_location(x, y, nlx, nly, nhx, nhy)) return FALSE;
+    if (oneshot) {
 	/* must make due with the only location possible */
 	/* avoid failure due to a misplaced trap */
 	/* it might still fail if there's a dungeon feature here */
 	struct trap *t = t_at(x,y);
 	if (t) deltrap(t);
     }
-    if(bad_location(x, y, nlx, nly, nhx, nhy)) return(FALSE);
     switch (rtype) {
     case LR_TELE:
     case LR_UPTELE:
@@ -540,7 +538,7 @@ register const char *s;
 	maze0xy(&mm);
 	walkfrom((int) mm.x, (int) mm.y);
 	/* put a boulder at the maze center */
-	(void) mksobj_at(BOULDER, (int) mm.x, (int) mm.y, TRUE);
+	(void) mksobj_at(BOULDER, (int) mm.x, (int) mm.y, TRUE, FALSE);
 
 #ifdef WALLIFIED_MAZE
 	wallification(2, 2, x_maze_max, y_maze_max);
@@ -603,7 +601,7 @@ register const char *s;
 	}
 	for(x = rn1(10,2); x; x--) {
 		mazexy(&mm);
-		(void) mksobj_at(BOULDER, mm.x, mm.y, TRUE);
+		(void) mksobj_at(BOULDER, mm.x, mm.y, TRUE, FALSE);
 	}
 	for (x = rn2(3); x; x--) {
 		mazexy(&mm);
@@ -880,24 +878,12 @@ register xchar x, y, todnum, todlevel;
 /* to ease the work of debuggers at this stage */
 #define register
 
-struct container {
-	struct container *next;
-	xchar x, y;
-	short what;
-	genericptr_t list;
-};
 #define CONS_OBJ   0
 #define CONS_MON   1
 #define CONS_HERO  2
 #define CONS_TRAP  3
 
-static struct bubble {
-	xchar x, y;	/* coordinates of the upper left corner */
-	schar dx, dy;	/* the general direction of the bubble's movement */
-	uchar *bm;	/* pointer to the bubble bit mask */
-	struct bubble *prev, *next; /* need to traverse the list up and down */
-	struct container *cons;
-} *bbubbles, *ebubbles;
+static struct bubble *bbubbles, *ebubbles;
 
 static struct trap *wportal;
 static int xmin, ymin, xmax, ymax;	/* level boundaries */

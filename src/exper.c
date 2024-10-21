@@ -139,11 +139,11 @@ const char *drainer;	/* cause of death, if drain should be fatal */
 	else if (u.uhp > u.uhpmax) u.uhp = u.uhpmax;
 
 	if (u.ulevel < urole.xlev)
-	    num = rn1(u.ulevel/2 + urole.enadv.lornd + urace.enadv.lornd,
-			urole.enadv.lofix + urace.enadv.lofix);
+	    num = rn1((int)ACURR(A_WIS)/2 + urole.enadv.lornd + urace.enadv.lornd,
+	    		urole.enadv.lofix + urace.enadv.lofix);
 	else
-	    num = rn1(u.ulevel/2 + urole.enadv.hirnd + urace.enadv.hirnd,
-			urole.enadv.hifix + urace.enadv.hifix);
+	    num = rn1((int)ACURR(A_WIS)/2 + urole.enadv.hirnd + urace.enadv.hirnd,
+	    		urole.enadv.hifix + urace.enadv.hifix);
 	num = enermod(num);		/* M. Stephenson */
 	u.uenmax -= num;
 	if (u.uenmax < 0) u.uenmax = 0;

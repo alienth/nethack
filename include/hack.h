@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)hack.h	3.3	2000/01/28	*/
+/*	SCCS Id: @(#)hack.h	3.3	2001/04/12	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -43,8 +43,21 @@
 #define DISMOUNT_THROWN		2
 #define DISMOUNT_POLY		3
 #define DISMOUNT_ENGULFED	4
-#define DISMOUNT_BYCHOICE	5
+#define DISMOUNT_BONES		5
+#define DISMOUNT_BYCHOICE	6
 #endif
+
+/* Special returns from mapglyph() */
+#define MG_CORPSE	0x01
+#define MG_INVIS	0x02
+#define MG_DETECT	0x04
+#define MG_PET		0x08
+#define MG_RIDDEN	0x10
+
+/* sellobj_state() states */
+#define SELL_NORMAL	(0)
+#define SELL_DELIBERATE	(1)
+#define SELL_DONTSELL	(2)
 
 /*
  * This is the way the game ends.  If these are rearranged, the arrays
@@ -126,6 +139,9 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define MM_ANGRY	  0x10  /* monster is created angry */
 #define MM_NONAME	  0x20  /* monster is not christened */
 
+/* flags for special ggetobj status returns */
+#define ALL_FINISHED	  0x01  /* called routine already finished the job */
+
 /* flags to control query_objlist() */
 #define BY_NEXTHERE	  0x1	/* follow objlist by nexthere field */
 #define AUTOSELECT_SINGLE 0x2	/* if only 1 object, don't ask */
@@ -149,6 +165,13 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define FM_MYDOGS      0x04	/* search mydogs */
 #define FM_EVERYWHERE  (FM_FMON | FM_MIGRATE | FM_MYDOGS)
 
+/* Flags to control pick_[race,role,gend,align] routines in role.c */
+#define PICK_RANDOM	0
+#define PICK_RIGID	1
+
+/* Flags to control dotrap() in trap.c */
+#define NOWEBMSG	0x01	/* suppress stumble into web message */
+
 /*** some utility macros ***/
 #define yn(query) yn_function(query,ynchars, 'n')
 #define ynq(query) yn_function(query,ynqchars, 'q')
@@ -169,6 +192,16 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define ROLL	1
 #define FLING	2
 
+/* Macros for explosion types */
+#define EXPL_DARK	0
+#define EXPL_NOXIOUS	1
+#define EXPL_MUDDY	2
+#define EXPL_WET	3
+#define EXPL_MAGICAL	4
+#define EXPL_FIERY	5
+#define EXPL_FROSTY	6
+#define EXPL_MAX	7
+
 /* Macros for messages referring to hands, eyes, feet, etc... */
 #define ARM 0
 #define EYE 1
@@ -187,6 +220,8 @@ NEARDATA extern coord bhitpos;	/* place where throw or zap hits or stops */
 #define HAIR 14
 #define BLOOD 15
 #define LUNG 16
+#define NOSE 17
+#define STOMACH 18
 
 /* Flags to control menus */
 #define MENUTYPELEN sizeof("traditional ")

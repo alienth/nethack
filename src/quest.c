@@ -152,6 +152,7 @@ boolean seal;
 		  !seal ? 1 : -1;
     schedule_goto(dest, FALSE, FALSE, portal_flag, (char *)0, (char *)0);
     if (seal) {	/* remove the portal to the quest - sealing it off */
+	int reexpelled = u.uevent.qexpelled;
 	u.uevent.qexpelled = 1;
 	/* Delete the near portal now; the far (main dungeon side)
 	   portal will be deleted as part of arrival on that level.
@@ -160,7 +161,7 @@ boolean seal;
 	for (t = ftrap; t; t = t->ntrap)
 	    if (t->ttyp == MAGIC_PORTAL) break;
 	if (t) deltrap(t);	/* (display might be briefly out of sync) */
-	else impossible("quest portal already gone?");
+	else if (!reexpelled) impossible("quest portal already gone?");
     }
 }
 
@@ -293,7 +294,8 @@ nemesis_speaks()
 {
 	if(!Qstat(in_battle)) {
 	  if(u.uhave.questart) qt_pager(QT_NEMWANTSIT);
-	  else if(Qstat(made_goal) == 1) qt_pager(QT_FIRSTNEMESIS);
+	  else if(Qstat(made_goal) == 1 || !Qstat(met_nemesis))
+	      qt_pager(QT_FIRSTNEMESIS);
 	  else if(Qstat(made_goal) < 4) qt_pager(QT_NEXTNEMESIS);
 	  else if(Qstat(made_goal) < 7) qt_pager(QT_OTHERNEMESIS);
 	  else if(!rn2(5))	qt_pager(rn1(10, QT_DISCOURAGE));
@@ -307,7 +309,10 @@ STATIC_OVL void
 chat_with_guardian()
 {
 /*	These guys/gals really don't have much to say... */
-	qt_pager(rn1(5, QT_GUARDTALK));
+	if (u.uhave.questart && Qstat(killed_nemesis))
+	    qt_pager(rn1(5, QT_GUARDTALK2));
+	else
+	    qt_pager(rn1(5, QT_GUARDTALK));
 }
 
 STATIC_OVL void

@@ -222,6 +222,35 @@ void mar_clear_messagewin(void){
 	mar_display_nhwindow(WIN_MESSAGE);
 }
 
+void clipbrd_save(void *data,int cnt,boolean append,boolean is_inv){
+	char path[MAX_PATH],*text,*crlf="\r\n";
+	long handle;
+	int i;
+
+	if (data && cnt>0 && scrp_path(path,"scrap.txt") && (handle = append ? Fopen(path,1) : Fcreate(path,0))>0){
+		if (append)
+			Fseek(0L,(int) handle,SEEK_END);
+		if(is_inv){
+			Gem_menu_item *it=(Gem_menu_item *)data;
+
+			for(;it;it=it->Gmi_next){
+				text=it->Gmi_str;
+				Fwrite((int) handle,strlen(text),text);
+				Fwrite((int) handle,2L,crlf);
+			}
+		}else{
+			for(i=0;i<cnt;i++){
+				text=((char **)data)[i]+1;
+				Fwrite((int) handle,strlen(text),text);
+				Fwrite((int) handle,2L,crlf);
+			}
+		}
+		Fclose((int) handle);
+
+		scrp_changed(SCF_TEXT,0x2e545854l);	/* .TXT */
+	}
+}
+
 void move_win(WIN *z_win){
 	GRECT frame=desk;
 
@@ -317,13 +346,13 @@ static void win_draw_map(int first, WIN *win, GRECT *area){
 		pla[2]=pla[0]=area->g_x-x;
 		pla[3]=pla[1]=0;
 		pla[2]+=w;
-		pla[3]+=mch;	/* MAR -- was 16 */
+		pla[3]+=mch;
 		pla[6]=pla[4]=area->g_x;	/* x_wert to */
 		pla[7]=pla[5]=y;	/* y_wert to */
 		pla[6]+=w;
-		pla[7]+=mch;	/* MAR -- was 16 */
+		pla[7]+=mch;
 		Vsync();
-		back.g_h=Fch;	/* MAR -- was 16 */
+		back.g_h=Fch;
 		for(i=0;i<ROWNO;i++,y+=Fch,pla[1]+=Fch,pla[3]+=Fch,pla[5]+=Fch,pla[7]+=Fch){
 			back.g_y=y;
 			my_color_area(&back,BLACK);
@@ -394,6 +423,7 @@ static int draw_lines(PARMBLK *pb){
 		start_line = min((area.g_y-y+area.g_h+Fch-1)/Fch,Anz_text_lines-start_line);
 		area.g_h=Fch;
 		Vsync();
+		x=(x+7) & ~7;
 		for(;--start_line>=0;y+=Fch){
 			area.g_y=y;
 			my_clear_area(&area);
@@ -424,11 +454,8 @@ static int draw_msgline(PARMBLK *pb){
 		v_set_text(ibm_font_id,ibm_font,FAIL, FAIL,0,NULL);
 		vst_alignment(x_handle,0,5,&foo,&foo);
 		foo=min(msg_pos,3);
-/*		area.g_h=Fch;*/
 		Vsync();
 		for(i=0;i<foo;i++,y-=Fch,ptr--){
-/*			area.g_y=y;
-			my_clear_area(&area);*/
 			if(message_age[msg_pos-i])
 				v_set_text(FAIL,0,BLACK,0,0,NULL);
 			else
@@ -442,23 +469,26 @@ static int draw_msgline(PARMBLK *pb){
 static int draw_status(PARMBLK *pb){
 	GRECT area=*(GRECT *) &pb->pb_x;
 
+	area.g_x+=2*StFcw-2;
+	area.g_w-=2*StFcw-2;
 	if(rc_intersect((GRECT *)&pb->pb_xc,&area)){
-		char **ptr=status_line;
-		int x=pb->pb_x, y=pb->pb_y, chardim[4], h;
+		int x=pb->pb_x, y=pb->pb_y;
 
 /* void v_set_text(int font,int height,int color,int effect,int rotate,int out[4])	*/
 		v_set_mode(MD_REPLACE);
 		if(max_w/Fcw>=COLNO-1)
-			v_set_text(ibm_font_id,ibm_font,BLACK,0,0,chardim);
+			v_set_text(ibm_font_id,ibm_font,BLACK,0,0,NULL);
 		else
-			v_set_text(small_font_id,small_font,BLACK,0,0,chardim);
-		h=chardim[3] ? chardim[3] : 1;
-		x+=2*chardim[2];
+			v_set_text(small_font_id,small_font,BLACK,0,0,NULL);
+		x = (x+2*StFcw+6) & ~7;
 
 		Vsync();
+		area.g_h=StFch;
 		my_clear_area(&area);
-		v_gtext(x_handle,x,y,  *(ptr++));
-		v_gtext(x_handle,x,y+h,*ptr);
+		v_gtext(x_handle,x,y,      status_line[0]);
+		area.g_y+=StFch;
+		my_clear_area(&area);
+		v_gtext(x_handle,x,y+StFch,status_line[1]);
 	}
 	return(0);
 }
@@ -509,7 +539,7 @@ static int draw_inventory(PARMBLK *pb){
 			}
 			if(it->Gmi_identifier)
 				it->Gmi_str[2]=it->Gmi_selected ? (it->Gmi_count == -1L ? '+' : '#') : '-';
-			v_gtext(x_handle,x+16,y,it->Gmi_str);
+			v_gtext(x_handle,(x+23) & ~7,y,it->Gmi_str);
 		}
 	}
 	return(0);
@@ -520,7 +550,7 @@ static int draw_prompt(PARMBLK *pb){
 
 	if(rc_intersect((GRECT *)&pb->pb_xc,&area)){
 		char **ptr=(char **)pb->pb_parm;
-		int x=pb->pb_x, y=pb->pb_y, chardim[4], h;
+		int x=pb->pb_x, y=pb->pb_y;
 
 /* void v_set_text(int font,int height,int color,int effect,int rotate,int out[4])	*/
 		v_set_mode(MD_TRANS);
@@ -1304,6 +1334,9 @@ XEVENT *xev;
 			case '\033':
 				send_return();	/* just closes the textwin */
 				break;
+			case C('c'):
+				clipbrd_save(text_lines,Anz_text_lines,xev->ev_mmokstate&K_SHIFT,FALSE);
+				break;
 			default:
 				ev &= ~MU_KEYBD;	/* unknown key */
 				break;
@@ -1325,7 +1358,6 @@ XEVENT *xev;
 	OBJECT *z_ob=zz_oblist[LINES];
 
 	ob_pos(z_ob,LINESLIST,&area);
-
 	if(ev&MU_MESAG){
 		int *buf=xev->ev_mmgpbuf, y_wo, i;
 
@@ -1338,10 +1370,11 @@ XEVENT *xev;
 				it->Gmi_selected=!it->Gmi_selected;
 				it->Gmi_count= count==0L ? -1L : count;
 				count = 0L;
-				if(Inv_how!=PICK_ANY)
-					my_close_dialog(Inv_dialog,TRUE);
-				else{
-					area.g_x+=16+2*Fcw;
+				if(Inv_how!=PICK_ANY){
+					/*my_close_dialog(Inv_dialog,TRUE);*/
+					send_return();
+				}else{
+					area.g_x=(area.g_x+23+2*Fcw) & ~7;
 					area.g_w=Fcw;
 					area.g_h=Fch;
 					area.g_y+=(y_wo-scroll_menu.vpos)*Fch;
@@ -1427,23 +1460,27 @@ XEVENT *xev;
 					}
 				}
 				break;
+			case C('c'):
+				clipbrd_save(invent_list,Anz_inv_lines,xev->ev_mmokstate&K_SHIFT,TRUE);
+				break;
 			default:
 			find_acc:
 				if(Inv_how==PICK_NONE)
 					my_close_dialog(Inv_dialog,TRUE);
-				for(it=invent_list;it;it=it->Gmi_next){
-					if(it->Gmi_identifier && (it->Gmi_accelerator==ch || it->Gmi_groupacc==ch)){
-						it->Gmi_selected=!it->Gmi_selected;
-						it->Gmi_count= count==0L ? -1L : count;
-						count = 0L;
-						if(Inv_how!=PICK_ANY)
-							my_close_dialog(Inv_dialog,TRUE);
+				else
+					for(it=invent_list;it;it=it->Gmi_next){
+						if(it->Gmi_identifier && (it->Gmi_accelerator==ch || it->Gmi_groupacc==ch)){
+							it->Gmi_selected=!it->Gmi_selected;
+							it->Gmi_count= count==0L ? -1L : count;
+							count = 0L;
+							if(Inv_how!=PICK_ANY)
+								my_close_dialog(Inv_dialog,TRUE);
+						}
 					}
-				}
 				break;
 			}	/* end switch(ch) */
 			if(Inv_how==PICK_ANY){
-				area.g_x+=16+2*Fcw;
+				area.g_x=(area.g_x+23+2*Fcw) & ~7;
 				area.g_w=Fcw;
 				ob_draw_chg(Inv_dialog,LINESLIST,&area,FAIL);
 			}
@@ -1873,6 +1910,9 @@ mar_update_value()
 		mar_esc_pressed=FALSE;
 		mar_display_nhwindow(WIN_MESSAGE);
 	}
+
+	if(WIN_MAP!=WIN_ERR)
+		mar_cliparound();
 
 	if(WIN_STATUS!=WIN_ERR){
 		mar_check_hilight_status();

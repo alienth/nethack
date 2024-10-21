@@ -16,7 +16,7 @@ void
 cursetxt(mtmp)
 struct monst *mtmp;
 {
-	if (canseemon(mtmp)) {
+	if (canseemon(mtmp) && couldsee(mtmp->mx, mtmp->my)) {
 	    const char *point_msg;  /* spellcasting monsters are impolite */
 
 	    if ((Invis && !perceives(mtmp->data) &&
@@ -272,8 +272,12 @@ castmu(mtmp, mattk)	/* monster casts spell at you */
 		    case 7:		/* blindness */
 			/* note: resists_blnd() doesn't apply here */
 			if (!Blinded) {
-			    pline("Scales cover your %s!", makeplural(body_part(EYE)));
+			    int num_eyes = eyecount(youmonst.data);
+			    pline("Scales cover your %s!",
+				  (num_eyes == 1) ?
+				  body_part(EYE) : makeplural(body_part(EYE)));
 			    make_blinded(Half_spell_damage ? 100L:200L, FALSE);
+			    if (!Blind) Your(vision_clears);
 			    dmg = 0;
 			    break;
 			}

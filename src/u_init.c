@@ -12,10 +12,10 @@ struct trobj {
 	Bitfield(trbless,2);
 };
 
-static void FDECL(ini_inv, (struct trobj *));
-static void FDECL(knows_object,(int));
-static void FDECL(knows_class,(CHAR_P));
-static boolean FDECL(restricted_spell_discipline, (int));
+STATIC_DCL void FDECL(ini_inv, (struct trobj *));
+STATIC_DCL void FDECL(knows_object,(int));
+STATIC_DCL void FDECL(knows_class,(CHAR_P));
+STATIC_DCL boolean FDECL(restricted_spell_discipline, (int));
 
 #define UNDEF_TYP	0
 #define UNDEF_SPE	'\177'
@@ -212,7 +212,12 @@ static struct trobj Wishing[] = {
 	{ WAN_WISHING, 3, WAND_CLASS, 1, 0 },
 	{ 0, 0, 0, 0, 0 }
 };
-
+#ifdef GOLDOBJ
+static struct trobj Money[] = {
+        { GOLD_PIECE, 0 , GOLD_CLASS, 1, 0 },
+        { 0, 0, 0, 0, 0 }
+};
+#endif
 /* race-based substitutions for initial inventory;
    the weaker cloak for elven rangers is intentional--they shoot better */
 static struct inv_sub { short race_pm, item_otyp, subs_otyp; } inv_subs[] = {
@@ -485,7 +490,7 @@ static struct def_skill Skill_W[] = {
 };
 
 
-static void
+STATIC_OVL void
 knows_object(obj)
 register int obj;
 {
@@ -496,7 +501,7 @@ register int obj;
 /* Know ordinary (non-magical) objects of a certain class,
  * like all gems except the loadstone and luckstone.
  */
-static void
+STATIC_OVL void
 knows_class(sym)
 register char sym;
 {
@@ -622,7 +627,11 @@ u_init()
 		skill_init(Skill_C);
 		break;
 	case PM_HEALER:
+#ifndef GOLDOBJ
 		u.ugold = u.ugold0 = rn1(1000, 1001);
+#else
+		u.umoney0 = rn1(1000, 1001);
+#endif
 		ini_inv(Healer);
 		if(!rn2(25)) ini_inv(Lamp);
 		knows_object(POT_FULL_HEALING);
@@ -703,7 +712,11 @@ u_init()
 		break;
 	case PM_ROGUE:
 		Rogue[R_DAGGERS].trquan = rn1(10, 6);
+#ifndef GOLDOBJ
 		u.ugold = u.ugold0 = 0;
+#else
+		u.umoney0 = 0;
+#endif
 		ini_inv(Rogue);
 		if(!rn2(5)) ini_inv(Blindfold);
 		knows_object(SACK);
@@ -720,7 +733,11 @@ u_init()
 #ifdef TOURIST
 	case PM_TOURIST:
 		Tourist[T_DARTS].trquan = rn1(20, 21);
+#ifndef GOLDOBJ
 		u.ugold = u.ugold0 = rnd(1000);
+#else
+		u.umoney0 = rnd(1000);
+#endif
 		ini_inv(Tourist);
 		if(!rn2(25)) ini_inv(Tinopener);
 		else if(!rn2(25)) ini_inv(Leash);
@@ -823,7 +840,17 @@ u_init()
 	if (discover)
 		ini_inv(Wishing);
 
+#ifdef WIZARD
+	if (wizard)
+		read_wizkit();
+#endif
+
+#ifndef GOLDOBJ
 	u.ugold0 += hidden_gold();	/* in case sack has gold in it */
+#else
+        if (u.umoney0) ini_inv(Money);
+	u.umoney0 += hidden_gold();	/* in case sack has gold in it */
+#endif
 
 	find_ac();			/* get initial ac value */
 	init_attr(75);			/* init attribute values */
@@ -850,7 +877,7 @@ u_init()
 }
 
 /* skills aren't initialized, so we use the role-specific skill lists */
-static boolean
+STATIC_OVL boolean
 restricted_spell_discipline(otyp)
 int otyp;
 {
@@ -883,7 +910,7 @@ int otyp;
     return TRUE;
 }
 
-static void
+STATIC_OVL void
 ini_inv(trop)
 register struct trobj *trop;
 {
@@ -933,7 +960,6 @@ register struct trobj *trop;
 				|| otyp == POT_ACID
 				|| otyp == SCR_AMNESIA
 				|| otyp == SCR_FIRE
-				|| otyp == SCR_STINKING_CLOUD
 				|| otyp == SCR_BLANK_PAPER
 				|| otyp == SPE_BLANK_PAPER
 				|| otyp == RIN_AGGRAVATE_MONSTER
@@ -984,20 +1010,28 @@ register struct trobj *trop;
 				nocreate4 = otyp;
 		}
 
-		obj->dknown = obj->bknown = obj->rknown = 1;
-		if (objects[otyp].oc_uses_known) obj->known = 1;
-		obj->cursed = 0;
-		if (obj->opoisoned && u.ualign.type != A_CHAOTIC)
-		    obj->opoisoned = 0;
-		if(obj->oclass == WEAPON_CLASS || obj->oclass == TOOL_CLASS) {
+#ifdef GOLDOBJ
+		if (trop->trclass == GOLD_CLASS) {
+                        /* no "blessed" or "identified" money */
+		        obj->quan = u.umoney0;
+		} else {
+#endif
+			obj->dknown = obj->bknown = obj->rknown = 1;
+			if (objects[otyp].oc_uses_known) obj->known = 1;
+			obj->cursed = 0;
+			if (obj->opoisoned && u.ualign.type != A_CHAOTIC)
+			obj->opoisoned = 0;
+			if(obj->oclass == WEAPON_CLASS || obj->oclass == TOOL_CLASS) {
 			obj->quan = (long) trop->trquan;
 			trop->trquan = 1;
-		}
-		if(trop->trspe != UNDEF_SPE)
+			}
+			if(trop->trspe != UNDEF_SPE)
 			obj->spe = trop->trspe;
-		if(trop->trbless != UNDEF_BLESS)
+			if(trop->trbless != UNDEF_BLESS)
 			obj->blessed = trop->trbless;
-
+#ifdef GOLDOBJ
+		}
+#endif
 		/* defined after setting otyp+quan + blessedness */
 		obj->owt = weight(obj);
 		obj = addinv(obj);

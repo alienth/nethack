@@ -68,7 +68,7 @@ boolean complain;
 		   version_data->entity_count != VERSION_SANITY1 ||
 		   version_data->struct_sizes != VERSION_SANITY2) {
 	    if (complain)
-		pline("Configuration incompatability for file \"%s\".",
+		pline("Configuration incompatibility for file \"%s\".",
 		      filename);
 	    return FALSE;
 	}

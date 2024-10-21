@@ -64,38 +64,43 @@ do.c            do_name.c       do_wear.c       dog.c           dogmove.c
 dokick.c        dothrow.c       drawing.c       dungeon.c       eat.c
 end.c           engrave.c       exper.c         explode.c       extralev.c
 files.c         fountain.c      hack.c          hacklib.c       invent.c
-light.c         lock.c          mail.c          makemon.c       mcastu.c
-mhitm.c         mhitu.c         minion.c        mklev.c         mkmap.c
-mkmaze.c        mkobj.c         mkroom.c        mon.c           mondata.c
-monmove.c       monst.c         mplayer.c       mthrowu.c       muse.c
-music.c         o_init.c        objects.c       objnam.c        options.c
-pager.c         pickup.c        pline.c         polyself.c      potion.c
-pray.c          priest.c        quest.c         questpgr.c      read.c
-rect.c          region.c        restore.c       rip.c           rnd.c
-role.c          rumors.c        save.c          shk.c           shknam.c
-sit.c           sounds.c        sp_lev.c        spell.c         steal.c
-steed.c         teleport.c      timeout.c       topten.c        track.c
-trap.c          u_init.c        uhitm.c         vault.c         version.c
-vision.c        weapon.c        were.c          wield.c         windows.c
-wizard.c        worm.c          worn.c          write.c         zap.c
+light.c         lock.c          mail.c          makemon.c       mapglyph.c
+mcastu.c        mhitm.c         mhitu.c         minion.c        mklev.c
+mkmap.c         mkmaze.c        mkobj.c         mkroom.c        mon.c
+mondata.c       monmove.c       monst.c         mplayer.c       mthrowu.c
+muse.c          music.c         o_init.c        objects.c       objnam.c
+options.c       pager.c         pickup.c        pline.c         polyself.c
+potion.c        pray.c          priest.c        quest.c         questpgr.c
+read.c          rect.c          region.c        restore.c       rip.c
+rnd.c           role.c          rumors.c        save.c          shk.c
+shknam.c        sit.c           sounds.c        sp_lev.c        spell.c
+steal.c         steed.c         teleport.c      timeout.c       topten.c
+track.c         trap.c          u_init.c        uhitm.c         vault.c
+version.c       vision.c        weapon.c        were.c          wield.c
+windows.c       wizard.c        worm.c          worn.c          write.c
+zap.c
 
 sys/amiga:
 (files for Amiga versions)
-Build.ami       HackWB.uu       Install.ami     Makefile.ami    NHinfo.uu
-NetHack.cnf     NewGame.uu      amidos.c        amidos.p        amifont.uu
-amifont8.uu     amigst.c        amii.hlp        amilib.c        amimenu.c
-amirip.c        amisnd.c        amistack.c      amitty.c        amiwbench.c
-amiwind.c       amiwind.p       ask.uu          char.c          charwin.uu
-clipwin.c       clipwin.uu      colors.uu       colorwin.c      cvtsnd.c
-dflticon.uu     dispmap.s       grave16.xpm     hackwb.hlp      ifchange
-mkdmake         randwin.c       randwin.uu      scroll.uu       string.uu
-txt2iff.c       wb.c            wbcli.c         wbdata.c        wbdefs.h
-wbgads.c        wbprotos.h      wbstruct.h      wbwin.c         wbwin.uu
+Build.ami       Install.ami     Makefile.ami    Makefile.amigcc NetHack.cnf
+amidos.c        amidos.p        amifont.uu      amifont8.uu     amigst.c
+amii.hlp        amimenu.c       amirip.c        amisnd.c        amistack.c
+amitty.c        amiwind.c       amiwind.p       ask.uu          clipwin.c
+clipwin.uu      colors.uu       colorwin.c      cvtsnd.c        grave16.xpm
+ifchange        mkdmake         scroll.uu       string.uu       txt2iff.c
 winami.c        winami.p        winchar.c       windefs.h       winext.h
 winfuncs.c      winkey.c        winmenu.c       winproto.h      winreq.c
 winstr.c        xpm2iff.c
 
-sys/amiga/splitter:
+sys/amiga/old:
+(old and obsolete files)
+amilib.c        amiwbench.c     char.c          charwin.uu      dflicon.uu
+dispmap.s       hackwb.hlp      HackWB.uu       NewGame.uu      NHinfo.uu
+randwin.c       randwin.uu      wb.c            wbcli.c         wbdata.c
+wbdefs.h        wbgads.c        wbprotos.h      wbstruct.h      wbwin.c
+wbwin.uu
+
+sys/amiga/old/splitter:
 (more files for Amiga versions)
 amiout.h        arg.c           arg.h           loader.c        multi.c
 multi.h         split.doc       split.h         splitter.c
@@ -176,7 +181,7 @@ sys/unix:
 (files for UNIX versions)
 Install.unx     Makefile.dat    Makefile.doc    Makefile.src    Makefile.top
 Makefile.utl    depend.awk      nethack.sh      setup.sh        unixmain.c
-unixunix.c
+unixunix.c      unixres.c
 (files for replacement cpp, apparently only needed by some UNIX systems)
 cpp1.shr        cpp2.shr        cpp3.shr
 (file for sound driver for 386 UNIX)
@@ -190,10 +195,10 @@ spec_lev.com    vmsbuild.com    vmsfiles.c      vmsmail.c       vmsmain.c
 vmsmisc.c       vmstty.c        vmsunix.c
 
 sys/winnt:
-(files for Windows NT and Windows'95 version)
-Install.nt      Makefile.nt     mapimail.c      nethack.def     nhico.uu
-nhsetup.bat     ntsound.c       nttty.c         win32api.h      winnt.c
-winnt.cnf
+(files for Windows 9x, NT and Windows2000 version)
+Install.nt      Makefile.bcc    Makefile.nt     mapimail.c      nethack.def
+nhico.uu        nhsetup.bat     ntsound.c       nttty.c         win32api.h
+winnt.c         winnt.cnf
 
 util:
 (files for all versions)

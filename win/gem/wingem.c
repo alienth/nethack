@@ -157,9 +157,13 @@ Gem_player_selection()
 	anything any;
 	menu_item *selected=NULL;
 
+	/* avoid unnecessary prompts further down */
+	rigid_role_checks();
+
 	/* Should we randomly pick for the player? */
-	if (flags.initrole == ROLE_NONE || flags.initrace == ROLE_NONE || 
-		flags.initgend == ROLE_NONE || flags.initalign == ROLE_NONE) {
+	if (!flags.randomall &&
+	    (flags.initrole == ROLE_NONE || flags.initrace == ROLE_NONE || 
+		flags.initgend == ROLE_NONE || flags.initalign == ROLE_NONE)) {
 		pick4u = yn_function("Shall I pick a character for you? [ynq]",ynqchars,'n');
 		if(pick4u=='q'){
 give_up:		/* Just quit */
@@ -174,10 +178,10 @@ give_up:		/* Just quit */
 	if (flags.initrole < 0) {
 
 		/* Process the choice */
-		if(pick4u=='y' || flags.initrole == ROLE_RANDOM) {
+		if(pick4u=='y' || flags.initrole == ROLE_RANDOM || flags.randomall) {
 			/* Pick a random role */
 			flags.initrole = pick_role(flags.initrace, flags.initgend,
-							flags.initalign);
+							flags.initalign, PICK_RANDOM);
 			if (flags.initrole < 0) {
 				mar_add_message("Incompatible role!");
 				mar_display_nhwindow(WIN_MESSAGE);
@@ -201,7 +205,7 @@ give_up:		/* Just quit */
 				}
 			}
 			any.a_int = pick_role(flags.initrace, flags.initgend,
-					    flags.initalign)+1;
+					    flags.initalign, PICK_RANDOM)+1;
 			if (any.a_int == 0)	/* must be non-zero */
 			    any.a_int = randrole()+1;
 			add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
@@ -227,9 +231,9 @@ give_up:		/* Just quit */
 	 * pre-selected gender/alignment */
 	if (flags.initrace < 0 || !validrace(flags.initrole, flags.initrace)) {
 		/* pre-selected race not valid */
-		if (pick4u == 'y' || flags.initrace == ROLE_RANDOM) {
+		if (pick4u == 'y' || flags.initrace == ROLE_RANDOM || flags.randomall) {
 			flags.initrace = pick_race(flags.initrole, flags.initgend,
-								flags.initalign);
+							flags.initalign, PICK_RANDOM);
 			if (flags.initrace < 0) {
 				mar_add_message("Incompatible race!");
 				mar_display_nhwindow(WIN_MESSAGE);
@@ -268,7 +272,7 @@ give_up:		/* Just quit */
 							0, ATR_NONE, races[i].noun, MENU_UNSELECTED);
 					}
 				any.a_int = pick_race(flags.initrole, flags.initgend,
-					flags.initalign)+1;
+					flags.initalign, PICK_RANDOM)+1;
 				if (any.a_int == 0)	/* must be non-zero */
 					any.a_int = randrace(flags.initrole)+1;
 				add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
@@ -297,9 +301,9 @@ give_up:		/* Just quit */
 	if (flags.initgend < 0 || !validgend(flags.initrole, flags.initrace,
 						flags.initgend)) {
 		/* pre-selected gender not valid */
-		if (pick4u == 'y' || flags.initgend == ROLE_RANDOM) {
+		if (pick4u == 'y' || flags.initgend == ROLE_RANDOM || flags.randomall) {
 			flags.initgend = pick_gend(flags.initrole, flags.initrace,
-							flags.initalign);
+							flags.initalign, PICK_RANDOM);
 			if (flags.initgend < 0) {
 				mar_add_message("Incompatible gender!");
 				mar_display_nhwindow(WIN_MESSAGE);
@@ -338,7 +342,7 @@ give_up:		/* Just quit */
 							0, ATR_NONE, genders[i].adj, MENU_UNSELECTED);
 					}
 				any.a_int = pick_gend(flags.initrole, flags.initrace,
-						    flags.initalign)+1;
+						    flags.initalign, PICK_RANDOM)+1;
 				if (any.a_int == 0)	/* must be non-zero */
 					any.a_int = randgend(flags.initrole, flags.initrace)+1;
 				add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
@@ -367,9 +371,9 @@ give_up:		/* Just quit */
 	if (flags.initalign < 0 || !validalign(flags.initrole, flags.initrace,
 							flags.initalign)) {
 		/* pre-selected alignment not valid */
-		if (pick4u == 'y' || flags.initalign == ROLE_RANDOM) {
+		if (pick4u == 'y' || flags.initalign == ROLE_RANDOM || flags.randomall) {
 			flags.initalign = pick_align(flags.initrole, flags.initrace,
-								flags.initgend);
+							flags.initgend, PICK_RANDOM);
 			if (flags.initalign < 0) {
 			    mar_add_message("Incompatible alignment!");
 				 mar_display_nhwindow(WIN_MESSAGE);
@@ -408,7 +412,7 @@ give_up:		/* Just quit */
 							0, ATR_NONE, aligns[i].adj, MENU_UNSELECTED);
 					}
 				any.a_int = pick_align(flags.initrole, flags.initrace,
-						    flags.initgend)+1;
+						    flags.initgend, PICK_RANDOM)+1;
 				if (any.a_int == 0)	/* must be non-zero */
 					any.a_int = randalign(flags.initrole, flags.initrace)+1;
 				add_menu(win, NO_GLYPH, &any , '*', 0, ATR_NONE,
@@ -863,77 +867,11 @@ void mar_print_gl_char(window, x, y, glyph)
     int glyph;
 {
     uchar   ch;
-    register int offset;
-#ifdef TEXTCOLOR
     int	    color;
+    unsigned special;
 
-#define zap_color(n)  color = iflags.use_color ? zapcolors[n] : NO_COLOR
-#define cmap_color(n) color = iflags.use_color ? defsyms[n].color : NO_COLOR
-#define obj_color(n)  color = iflags.use_color ? objects[n].oc_color : NO_COLOR
-#define mon_color(n)  color = iflags.use_color ? mons[n].mcolor : NO_COLOR
-#define invis_color(n) color = NO_COLOR
-#define pet_color(n)  color = iflags.use_color ? mons[n].mcolor :	      \
-				/* If no color, try to hilite pets; black  */ \
-				/* should be HI				   */ \
-				((iflags.hilite_pet) ? CLR_BLACK : NO_COLOR)
-#define warn_color(n) color = iflags.use_color ? def_warnsyms[n].color : NO_COLOR
-
-# else /* no text color */
-
-#define zap_color(n)
-#define cmap_color(n)
-#define obj_color(n)
-#define mon_color(n)
-#define invis_color(n)
-#define pet_color(c)
-#define warn_color(c)
-#endif /* no text color */
-
-    /*
-     *  Map the glyph back to a character.
-     *
-     *  Warning:  For speed, this makes an assumption on the order of
-     *		  offsets.  The order is set in display.h.
-     */
-    if ((offset = (glyph - GLYPH_WARNING_OFF)) >= 0) { 		/* a warning flash */
-	ch = warnsyms[offset];
-	warn_color(offset);
-    } else
-    if ((offset = (glyph - GLYPH_SWALLOW_OFF)) >= 0) {		/* swallow */
-	/* see swallow_to_glyph() in display.c */
-	ch = (uchar) showsyms[S_sw_tl + (offset & 0x7)];
-	mon_color(offset >> 3);
-    } else if ((offset = (glyph - GLYPH_ZAP_OFF)) >= 0) {	/* zap beam */
-	/* see zapdir_to_glyph() in display.c */
-	ch = showsyms[S_vbeam + (offset & 0x3)];
-	zap_color((offset >> 2));
-    } else if ((offset = (glyph - GLYPH_CMAP_OFF)) >= 0) {	/* cmap */
-	ch = showsyms[offset];
-	cmap_color(offset);
-    } else if ((offset = (glyph - GLYPH_OBJ_OFF)) >= 0) {	/* object */
-	ch = oc_syms[(int)objects[offset].oc_class];
-	obj_color(offset);
-    } else if ((offset = (glyph - GLYPH_RIDDEN_OFF)) >= 0) {	/* mon ridden */
-	ch = monsyms[(int)mons[offset].mlet];
-    mon_color(offset);
-    } else if ((offset = (glyph - GLYPH_BODY_OFF)) >= 0) {	/* a corpse */
-	ch = oc_syms[(int)objects[CORPSE].oc_class];
-	mon_color(offset);
-    } else if ((offset = (glyph - GLYPH_DETECT_OFF)) >= 0) {	/* mon detect */
-	ch = monsyms[(int)mons[offset].mlet];
-    mon_color(offset);
-	/* Disabled for now; anyone want to get reverse video to work? */
-	/* is_reverse = TRUE; */
-    } else if ((offset = (glyph - GLYPH_INVIS_OFF)) >= 0) {	/* invisible */
-	ch = DEF_INVISIBLE;
-    invis_color(offset);
-    } else if ((offset = (glyph - GLYPH_PET_OFF)) >= 0) {	/* a pet */
-	ch = monsyms[(int)mons[offset].mlet];
-	pet_color(offset);
-    } else {							/* a monster */
-	ch = monsyms[(int)mons[glyph].mlet];
-	mon_color(glyph);
-    }
+    /* map glyph to character and color */
+    mapglyph(glyph, &ch, &color, &special, x, y);
 
 #ifdef TEXTCOLOR
     /* Turn off color if rogue level. */

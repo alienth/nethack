@@ -46,7 +46,7 @@ To use this code:
       likely to give the best interface for this window port:
 
         OPTIONS=name:player,number_pad,menustyle:partial,!time,showexp
-        OPTIONS=hilite_pet,toptenwin,msghistory:200
+        OPTIONS=hilite_pet,toptenwin,msghistory:200,windowtype:Qt
 
 
 If you are using KDE, you may want to also try the KDE version. It just

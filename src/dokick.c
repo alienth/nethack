@@ -66,7 +66,8 @@ register boolean clumsy;
 	/* it is unchivalrous to attack the defenseless or from behind */
 	if (Role_if(PM_KNIGHT) &&
 		u.ualign.type == A_LAWFUL && u.ualign.record > -10 &&
-		(!mon->mcanmove || mon->msleeping || mon->mflee)) {
+		(!mon->mcanmove || mon->msleeping ||
+		(mon->mflee && !mon->mavenge))) {
 	    You_feel("like a caitiff!");
 	    adjalign(-1);
 	}
@@ -74,12 +75,10 @@ register boolean clumsy;
 	/* squeeze some guilt feelings... */
 	if(mon->mtame) {
 	    abuse_dog(mon);
-	    mon->mflee = mon->mtame ? 1 : 0;
-#ifdef HISX
-	    mon->mfleetim = mon->mfleetim + (dmg ? rnd(dmg) : 1);
-#else
-	    mon->mfleetim += (dmg ? rnd(dmg) : 1);
-#endif
+	    if (mon->mtame)
+		monflee(mon, (dmg ? rnd(dmg) : 1), FALSE, FALSE);
+	    else
+		mon->mflee = 0;
 	}
 
 	if (dmg > 0) {
@@ -97,19 +96,20 @@ register boolean clumsy;
 	dmg += u.udaminc;	/* add ring(s) of increase damage */
 	if (dmg > 0)
 		mon->mhp -= dmg;
-	if(mon->mhp > 0 && martial() && !bigmonst(mon->data) && !rn2(3)
-			&& mon->mcanmove && mon != u.ustuck) {
+	if (mon->mhp > 0 && martial() && !bigmonst(mon->data) && !rn2(3) &&
+	    mon->mcanmove && mon != u.ustuck && !mon->mtrapped) {
 		/* see if the monster has a place to move into */
 		mdx = mon->mx + u.dx;
 		mdy = mon->my + u.dy;
 		if(goodpos(mdx, mdy, mon)) {
 			pline("%s reels from the blow.", Monnam(mon));
-			if (!m_in_out_region(mon, mdx, mdy)) {
+			if (m_in_out_region(mon, mdx, mdy)) {
 			    remove_monster(mon->mx, mon->my);
 			    newsym(mon->mx, mon->my);
 			    place_monster(mon, mdx, mdy);
 			    newsym(mon->mx, mon->my);
 			    set_apparxy(mon);
+			    (void) mintrap(mon);
 			}
 		}
 	}
@@ -165,6 +165,8 @@ register xchar x, y;
 		    You("kick %s.", mon_nam(mon));
 		    sum = damageum(mon, uattk);
 		    (void)passive(mon, (boolean)(sum > 0), (sum != 2), AT_KICK);
+		    if (sum == 2)
+			break;		/* Defender died */
 		} else {
 		    missum(mon, uattk);
 		    (void)passive(mon, 0, 1, AT_KICK);
@@ -217,7 +219,7 @@ doit:
 			pline("%s %s, %s evading your %skick.", Monnam(mon),
 				(can_teleport(mon->data) ? "teleports" :
 				 is_floater(mon->data) ? "floats" :
-				 is_flyer(mon->data) ? "flutters" :
+				 is_flyer(mon->data) ? "swoops" :
 				 (nolimbs(mon->data) || slithy(mon->data)) ?
 					"slides" : "jumps"),
 				clumsy ? "easily" : "nimbly",
@@ -247,6 +249,9 @@ register struct obj *gold;
 		if (canseemon(mtmp))
 		    pline_The("gold hits %s.", mon_nam(mtmp));
 	} else {
+#ifdef GOLDOBJ
+                long value = gold->quan * objects[gold->otyp].oc_cost;
+#endif
 		mtmp->msleeping = 0;
 		mtmp->meating = 0;
 		if(!rn2(4)) setmangry(mtmp); /* not always pleasing */
@@ -254,22 +259,32 @@ register struct obj *gold;
 		/* greedy monsters catch gold */
 		if (cansee(mtmp->mx, mtmp->my))
 		    pline("%s catches the gold.", Monnam(mtmp));
+#ifndef GOLDOBJ
 		mtmp->mgold += gold->quan;
+#endif
 		if (mtmp->isshk) {
 			long robbed = ESHK(mtmp)->robbed;
 
 			if (robbed) {
+#ifndef GOLDOBJ
 				robbed -= gold->quan;
+#else
+				robbed -= value;
+#endif
 				if (robbed < 0) robbed = 0;
 				pline_The("amount %scovers %s recent losses.",
 				      !robbed ? "" : "partially ",
-				      his[mtmp->female]);
+				      mhis(mtmp));
 				ESHK(mtmp)->robbed = robbed;
 				if(!robbed)
 					make_happy_shk(mtmp, FALSE);
 			} else {
 				if(mtmp->mpeaceful) {
+#ifndef GOLDOBJ
 				    ESHK(mtmp)->credit += gold->quan;
+#else
+				    ESHK(mtmp)->credit += value;
+#endif
 				    You("have %ld zorkmid%s in credit.",
 					ESHK(mtmp)->credit,
 					plur(ESHK(mtmp)->credit));
@@ -293,8 +308,13 @@ register struct obj *gold;
 			   goldreqd = 750L;
 
 			if (goldreqd) {
+#ifndef GOLDOBJ
 			   if (gold->quan > goldreqd +
 				(u.ugold + u.ulevel*rn2(5))/ACURR(A_CHA))
+#else
+			   if (value > goldreqd +
+				(money_cnt(invent) + u.ulevel*rn2(5))/ACURR(A_CHA))
+#endif
 			    mtmp->mpeaceful = TRUE;
 			}
 		     }
@@ -303,7 +323,11 @@ register struct obj *gold;
 		     else verbalize("That's not enough, coward!");
 		 }
 
+#ifndef GOLDOBJ
 		dealloc_obj(gold);
+#else
+                add_to_minv(mtmp, gold);
+#endif
 		return(1);
 	}
 	return(0);
@@ -541,12 +565,12 @@ char *buf;
 
 	if (kickobj) what = distant_name(kickobj,doname);
 	else if (IS_DOOR(maploc->typ)) what = "a door";
+	else if (IS_TREE(maploc->typ)) what = "a tree";
 	else if (IS_STWALL(maploc->typ)) what = "a wall";
 	else if (IS_ROCK(maploc->typ)) what = "a rock";
 	else if (IS_THRONE(maploc->typ)) what = "a throne";
 	else if (IS_FOUNTAIN(maploc->typ)) what = "a fountain";
 	else if (IS_GRAVE(maploc->typ)) what = "a headstone";
-	else if (IS_TREE(maploc->typ)) what = "a tree";
 #ifdef SINKS
 	else if (IS_SINK(maploc->typ)) what = "a sink";
 #endif

@@ -70,7 +70,7 @@ int FDECL(main, (int,char **));
 extern void FDECL(pcmain, (int,char **));
 
 
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) && !defined(_WIN32)
 void NDECL( startup );
 # ifdef OVLB
 unsigned _stklen = STKSIZ;
@@ -106,7 +106,7 @@ char *argv[];
 	register int fd;
 	register char *dir;
 
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) && !defined(_WIN32)
 	startup();
 #endif
 
@@ -167,13 +167,9 @@ char *argv[];
 	if(argc == 0)
 		chdirx(HACKDIR, 1);
 # endif
-	ami_argset(&argc, argv);
 	ami_wininit_data();
 #endif
 	initoptions();
-#ifdef AMIGA
-	ami_mkargline(&argc, &argv);
-#endif
 
 #if defined(TOS) && defined(TEXTCOLOR)
 	if (iflags.BIOS && iflags.use_color)
@@ -382,10 +378,6 @@ char *argv[];
 			if(yn("Do you want to keep the save file?") == 'n'){
 				(void) delete_savefile();
 			}
-# ifdef AMIGA
-			else
-				preserve_icon();
-# endif
 		}
 
 		flags.move = 0;
@@ -427,6 +419,17 @@ char *argv[];
 		argv++;
 		argc--;
 		switch(argv[0][1]){
+		case 'a':
+			if (argv[0][2]) {
+			    if ((i = str2align(&argv[0][2])) >= 0)
+			    	flags.initalign = i;
+			} else if (argc > 1) {
+				argc--;
+				argv++;
+			    if ((i = str2align(argv[0])) >= 0)
+			    	flags.initalign = i;
+			}
+			break;
 		case 'D':
 #ifdef WIZARD
 			/* If they don't have a valid wizard name, it'll be
@@ -467,6 +470,17 @@ char *argv[];
 				switch_graphics(DEC_GRAPHICS);
 			break;
 #endif
+		case 'g':
+			if (argv[0][2]) {
+			    if ((i = str2gend(&argv[0][2])) >= 0)
+			    	flags.initgend = i;
+			} else if (argc > 1) {
+				argc--;
+				argv++;
+			    if ((i = str2gend(argv[0])) >= 0)
+			    	flags.initgend = i;
+			}
+			break;
 		case 'p': /* profession (role) */
 			if (argv[0][2]) {
 			    if ((i = str2role(&argv[0][2])) >= 0)
@@ -507,6 +521,9 @@ char *argv[];
 			bigscreen = -1;
 			break;
 #endif
+		case '@':
+			flags.randomall = 1;
+			break;
 		default:
 			if ((i = str2role(&argv[0][1])) >= 0) {
 			    flags.initrole = i;

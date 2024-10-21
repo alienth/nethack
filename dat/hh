@@ -30,6 +30,7 @@ X       explore switch the game to explore (discovery) mode
 Game commands:
 ^D      kick    kick (a door, or something else)
 ^T      'port   teleport (if you can)
+^X      show    show your attributes
 a       apply   apply or use a tool (pick-axe, key, camera, etc.)
 A       armor   take off all armor
 c       close   close a door
@@ -67,6 +68,7 @@ Z       Zap     cast a spell
 *               ask for combination of ),[,=,",( all at once
 $       gold    count your gold
 +       spells  list the spells you know; also rearrange them if desired
+_       travel  move via a shortest-path algorithm to a point on the map 
 .       rest    wait a moment
 ,       pickup  pick up all you can carry
 @               toggle "pickup" (auto pickup) option on and off

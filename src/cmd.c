@@ -14,6 +14,8 @@
 #define NR_OF_EOFS	20
 #endif
 
+#define CMD_TRAVEL (char)0x90
+
 #ifdef DEBUG
 /*
  * only one "wiz_debug_cmd" routine should be available (in whatever
@@ -105,6 +107,7 @@ STATIC_PTR int NDECL(doprev_message);
 STATIC_PTR int NDECL(timed_occupation);
 STATIC_PTR int NDECL(doextcmd);
 STATIC_PTR int NDECL(domonability);
+STATIC_PTR int NDECL(dotravel);
 # ifdef WIZARD
 STATIC_PTR int NDECL(wiz_wish);
 STATIC_PTR int NDECL(wiz_identify);
@@ -115,8 +118,9 @@ STATIC_PTR int NDECL(wiz_detect);
 STATIC_PTR int NDECL(wiz_level_tele);
 STATIC_PTR int NDECL(wiz_show_seenv);
 STATIC_PTR int NDECL(wiz_show_vision);
+STATIC_PTR int NDECL(wiz_mon_polycontrol);
 STATIC_PTR int NDECL(wiz_show_wmodes);
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) && !defined(_WIN32)
 extern void FDECL(show_borlandc_stats, (winid));
 #endif
 STATIC_DCL void FDECL(count_obj, (struct obj *, long *, long *, BOOLEAN_P, BOOLEAN_P));
@@ -137,6 +141,8 @@ STATIC_DCL void FDECL(enlght_line, (const char *,const char *,const char *));
 static void NDECL(end_of_input);
 #endif
 #endif /* OVLB */
+
+static const char* readchar_queue="";
 
 STATIC_DCL char *NDECL(parse);
 
@@ -433,7 +439,7 @@ domonability()
 	if (can_breathe(youmonst.data)) return dobreathe();
 	else if (attacktype(youmonst.data, AT_SPIT)) return dospit();
 	else if (youmonst.data->mlet == S_NYMPH) return doremove();
-	else if (youmonst.data->mlet == S_UMBER) return doconfuse();
+	else if (attacktype(youmonst.data, AT_GAZE)) return dogaze();
 	else if (is_were(youmonst.data)) return dosummon();
 	else if (webmaker(youmonst.data)) return dospinweb();
 	else if (is_hider(youmonst.data)) return dohide();
@@ -549,6 +555,14 @@ wiz_level_tele()
 }
 
 STATIC_PTR int
+wiz_mon_polycontrol()
+{
+	iflags.mon_polycontrol = !iflags.mon_polycontrol;
+	pline("Monster polymorph control is %s.", iflags.mon_polycontrol ? "on" : "off");
+	return 0;
+}
+
+STATIC_PTR int
 wiz_show_seenv()
 {
 	winid win;
@@ -639,7 +653,7 @@ wiz_show_wmodes()
 		lev = &levl[x][y];
 		if (x == u.ux && y == u.uy)
 		    row[x] = '@';
-		if (IS_WALL(lev->typ) || lev->typ == SDOOR)
+		else if (IS_WALL(lev->typ) || lev->typ == SDOOR)
 		    row[x] = '0' + (lev->wall_info & WM_MASK);
 		else if (lev->typ == CORR)
 		    row[x] = '#';
@@ -743,6 +757,7 @@ int final;	/* 0 => still in progress; 1 => over, survived; 2 => dead */
 	if (Stone_resistance)
 		you_are("petrification resistant");
 	if (Invulnerable) you_are("invulnerable");
+	if (u.uedibility) you_can("recognize detrimental food");
 
 	/*** Troubles ***/
 	if (Halluc_resistance)
@@ -767,7 +782,11 @@ int final;	/* 0 => still in progress; 1 => over, survived; 2 => dead */
 		you_have(buf);
 	}
 	if (Fumbling) enl_msg("You fumble", "", "d", "");
-	if (Wounded_legs) {
+	if (Wounded_legs
+#ifdef STEED
+	    && !u.usteed
+#endif
+			  ) {
 		Sprintf(buf, "wounded %s", makeplural(body_part(LEG)));
 		you_have(buf);
 	}
@@ -790,6 +809,7 @@ int final;	/* 0 => still in progress; 1 => over, survived; 2 => dead */
 	if (Clairvoyant) you_are("clairvoyant");
 	if (Infravision) you_have("infravision");
 	if (Detect_monsters) you_are("sensing the presence of monsters");
+	if (u.umconf) you_are("going to confuse monsters");
 
 	/*** Appearance and behavior ***/
 	if (Adornment) you_are("adorned");
@@ -986,7 +1006,11 @@ minimal_enlightenment()
 	add_menu(tmpwin, NO_GLYPH, &any, 0, 0, ATR_BOLD, "Current", FALSE);
 	Sprintf(buf, fmtstr, "race", Upolyd ? youmonst.data->mname : urace.noun);
 	add_menu(tmpwin, NO_GLYPH, &any, 0, 0, ATR_NONE, buf, FALSE);
-	if (!Upolyd) {
+	if (Upolyd) {
+	    Sprintf(buf, fmtstr, "role (base)",
+		(u.mfemale && urole.name.f) ? urole.name.f : urole.name.m);
+	    add_menu(tmpwin, NO_GLYPH, &any, 0, 0, ATR_NONE, buf, FALSE);
+	} else {
 	    Sprintf(buf, fmtstr, "role",
 		(flags.female && urole.name.f) ? urole.name.f : urole.name.m);
 	    add_menu(tmpwin, NO_GLYPH, &any, 0, 0, ATR_NONE, buf, FALSE);
@@ -1273,6 +1297,7 @@ static const struct func_tab cmdlist[] = {
 	{GOLD_SYM, TRUE, doprgold},
 	{SPBOOK_SYM, TRUE, dovspell},			/* Mike Stephenson */
 	{'#', TRUE, doextcmd},
+	{'_', TRUE, dotravel},
 	{0,0,0,0}
 };
 
@@ -1314,6 +1339,7 @@ struct ext_func_tab extcmdlist[] = {
 	{(char *)0, (char *)0, donull, TRUE},
 	{(char *)0, (char *)0, donull, TRUE},
 	{(char *)0, (char *)0, donull, TRUE},
+	{(char *)0, (char *)0, donull, TRUE},
 #ifdef DEBUG
 	{(char *)0, (char *)0, donull, TRUE},
 #endif
@@ -1325,6 +1351,7 @@ struct ext_func_tab extcmdlist[] = {
 #if defined(WIZARD)
 static const struct ext_func_tab debug_extcmdlist[] = {
 	{"light sources", "show mobile light sources", wiz_light_sources, TRUE},
+	{"monpoly_control", "control monster polymorphs", wiz_mon_polycontrol, TRUE},
 	{"seenv", "show seen vectors", wiz_show_seenv, TRUE},
 	{"stats", "show memory statistics", wiz_show_stats, TRUE},
 	{"timeout", "look at timeout queue", wiz_timeout_queue, TRUE},
@@ -1531,7 +1558,7 @@ wiz_show_stats()
 	Sprintf(buf, template, "Total", total_mon_count, total_mon_size);
 	putstr(win, 0, buf);
 
-#ifdef __BORLANDC__
+#if defined(__BORLANDC__) && !defined(_WIN32)
 	show_borlandc_stats(win);
 #endif
 
@@ -1589,6 +1616,7 @@ register char *cmd;
 
 	/* handle most movement commands */
 	do_walk = do_rush = prefix_seen = FALSE;
+	flags.travel = 0;
 	switch (*cmd) {
 	 case 'g':  if (movecmd(cmd[1])) {
 			flags.run = 2;
@@ -1635,6 +1663,12 @@ register char *cmd;
 		    flags.move = FALSE;
 		    multi = 0;
 		    return;
+	 case CMD_TRAVEL:
+		    flags.travel = 1;
+		    flags.run = 8;
+		    flags.nopick = 1;
+		    do_rush = TRUE;
+		    break;
 	 default:   if (movecmd(*cmd)) {	/* ordinary movement */
 			do_walk = TRUE;
 		    } else if (movecmd(iflags.num_pad ?
@@ -1768,8 +1802,8 @@ const char *s;
 {
 	char dirsym;
 
-#ifdef REDO	
-	if(in_doagain)
+#ifdef REDO
+	if(in_doagain || *readchar_queue)
 	    dirsym = readchar();
 	else
 #endif
@@ -1817,34 +1851,85 @@ static NEARDATA int last_multi;
 /*
  * convert a MAP window position into a movecmd
  */
-int
+const char*
 click_to_cmd(x, y, mod)
     int x, y, mod;
 {
+    int dir;
+    static char cmd[4];
+    cmd[1]=0;
+
     x -= u.ux;
     y -= u.uy;
-    /* convert without using floating point, allowing sloppy clicking */
-    if(x > 2*abs(y))
-	x = 1, y = 0;
-    else if(y > 2*abs(x))
-	x = 0, y = 1;
-    else if(x < -2*abs(y))
-	x = -1, y = 0;
-    else if(y < -2*abs(x))
-	x = 0, y = -1;
-    else
+
+    if ( abs(x) <= 1 && abs(y) <= 1 ) {
 	x = sgn(x), y = sgn(y);
-
-    if(x == 0 && y == 0)	/* map click on player to "rest" command */
-	return '.';
-
-    x = xytod(x, y);
-    if(mod == CLICK_1) {
-	return (iflags.num_pad ? ndir[x] : sdir[x]);
     } else {
-	return (iflags.num_pad ? M(ndir[x]) :
-		(sdir[x] - 'a' + 'A')); /* run command */
+	u.tx = u.ux+x;
+	u.ty = u.uy+y;
+	cmd[0] = CMD_TRAVEL;
+	return cmd;
     }
+
+    if(x == 0 && y == 0) {
+	/* here */
+	if(IS_FOUNTAIN(levl[u.ux][u.uy].typ) || IS_SINK(levl[u.ux][u.uy].typ)) {
+	    cmd[0]=mod == CLICK_1 ? 'q' : M('d');
+	    return cmd;
+	} else if(IS_THRONE(levl[u.ux][u.uy].typ)) {
+	    cmd[0]=M('s');
+	    return cmd;
+	} else if((u.ux == xupstair && u.uy == yupstair)
+		  || (u.ux == sstairs.sx && u.uy == sstairs.sy && sstairs.up)
+		  || (u.ux == xupladder && u.uy == yupladder)) {
+	    return "<";
+	} else if((u.ux == xdnstair && u.uy == ydnstair)
+		  || (u.ux == sstairs.sx && u.uy == sstairs.sy && !sstairs.up)
+		  || (u.ux == xdnladder && u.uy == ydnladder)) {
+	    return ">";
+	} else if(OBJ_AT(u.ux, u.uy)) {
+	    cmd[0] = Is_container(level.objects[u.ux][u.uy]) ? M('l') : ',';
+	    return cmd;
+	} else {
+	    return "."; /* just rest */
+	}
+    }
+
+    /* directional commands */
+
+    dir = xytod(x, y);
+
+    if (!m_at(u.ux+x, u.uy+y) && !test_move(u.ux, u.uy, x, y, 1)) {
+	cmd[1] = (iflags.num_pad ? ndir[dir] : sdir[dir]);
+	cmd[2] = 0;
+	if (IS_DOOR(levl[u.ux+x][u.uy+y].typ)) {
+	    /* slight assistance to the player: choose kick/open for them */
+	    if (levl[u.ux+x][u.uy+y].doormask & D_LOCKED) {
+		cmd[0] = C('d');
+		return cmd;
+	    }
+	    if (levl[u.ux+x][u.uy+y].doormask & D_CLOSED) {
+		cmd[0] = 'o';
+		return cmd;
+	    }
+	}
+	if (levl[u.ux+x][u.uy+y].typ <= SCORR) {
+	    cmd[0] = 's';
+	    cmd[1] = 0;
+	    return cmd;
+	}
+    }
+
+    /* move, attack, etc. */
+    cmd[1] = 0;
+    if(mod == CLICK_1) {
+	cmd[0] = (iflags.num_pad ? ndir[dir] : sdir[dir]);
+    } else {
+	cmd[0] = (iflags.num_pad ? M(ndir[dir]) :
+		(sdir[dir] - 'a' + 'A')); /* run command */
+    }
+
+    return cmd;
 }
 
 STATIC_OVL char *
@@ -1941,10 +2026,13 @@ readchar()
 	register int sym;
 	int x = u.ux, y = u.uy, mod = 0;
 
+	if ( *readchar_queue )
+	    sym = *readchar_queue++;
+	else
 #ifdef REDO
-	sym = in_doagain ? Getchar() : nh_poskey(&x, &y, &mod);
+	    sym = in_doagain ? Getchar() : nh_poskey(&x, &y, &mod);
 #else
-	sym = Getchar();
+	    sym = Getchar();
 #endif
 
 #ifdef UNIX
@@ -1966,10 +2054,35 @@ readchar()
 	    end_of_input();
 #endif /* UNIX */
 
-	if(sym == 0) /* click event */
-	    sym = click_to_cmd(x, y, mod);
+	if(sym == 0) {
+	    /* click event */
+	    readchar_queue = click_to_cmd(x, y, mod);
+	    sym = *readchar_queue++;
+	}
 	return((char) sym);
 }
+
+STATIC_PTR int
+dotravel()
+{
+	/* Keyboard travel command */
+	static char cmd[2];
+	coord cc;
+	cmd[1]=0;
+	cc.x = u.ux;
+	cc.y = u.uy;
+	pline("Where do you want to travel to?");
+	if (getpos(&cc, TRUE, "the desired destination") < 0) {
+		/* user pressed ESC */
+		return 0;
+	}
+	u.tx = cc.x;
+	u.ty = cc.y;
+	cmd[0] = CMD_TRAVEL;
+	readchar_queue = cmd;
+	return 0;
+}
+
 #endif /* OVL0 */
 
 /*cmd.c*/

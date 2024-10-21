@@ -1,16 +1,24 @@
-                NetHack 3.3.1 -- General information
+                NetHack 3.3.2 -- General information
 
-NetHack 3.3.1 is an enhancement to the dungeon exploration game NetHack.
+NetHack 3.3.2 is an enhancement to the dungeon exploration game NetHack.
 It is a distant descendent of Rogue and Hack, and a direct descendent of
-NetHack 3.2 and 3.3.0.  This version is primarily a bug fix release.
+NetHack 3.2 and 3.3.1.  This version is primarily a bug fix release.
 
 Here is a brief overview of new additions and changes in the game.
 To give more would be cheating, wouldn't it?
 
-o Many, many bug fixes and minor tweaks
-o New warning system that is more pleasant than the old one
-o The Amiga and Atari ports are resurrected
-o The Gnome toolkit interface is now offered as an experimental option
+o Many, many bug fixes and tweaks
+o Enhanced config file processing and player selection prompts for some ports
+o Stamina affects ability to throw heavy things
+o Objects merge in containers
+o Wish for "nothing", and genocide "none" to preserve your conduct
+o Several small refinements to race/role separation
+o Config file BOULDER option to specify the symbol for displaying boulders
+o Mac: command-key shortcuts in the player selection dialog
+o Amiga: screenmode requester
+
+Carried forward
+o The Gnome toolkit interface is still considered an experimental option
 
 
                         - - - - - - - - - - -
@@ -143,10 +151,10 @@ Please read items (1), (2) and (3) BEFORE doing anything with your new code.
     lack of people with machines and time.
 
     With the demise of Windows NT on the DEC Alpha, no attempt has been
-    made to build NetHack 3.3.1 on that platform.
+    made to build NetHack 3.3.2 on that platform.
     
     A build for Intel 80286 machines and DOS "real mode" overlaid versions 
-    has been produced for 3.3.1, with a marginal attempt at tuning it for 
+    has been produced for 3.3.2, with a marginal attempt at tuning it for 
     suitable performance.  If someone has access to real-mode compiler and 
     lots of spare time on their hands, you may be able to enhance the 
     performance even further.  We don't know how well it runs on a real

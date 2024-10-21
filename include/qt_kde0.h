@@ -4,7 +4,7 @@
 
 #ifndef QT_DUMMYKDE
 #define QT_DUMMYKDE
-class KTopLevelWidget : public QWidget {
+class KTopLevelWidget : public QMainWindow {
         Q_OBJECT
 };
 #endif

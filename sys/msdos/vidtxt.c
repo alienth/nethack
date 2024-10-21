@@ -31,9 +31,8 @@
 # endif
 #endif
 
-/* void FDECL(txt_xputc,(char, int)); /* write out character (and attribute) */
+/* void FDECL(txt_xputc,(char, int)); */ /* write out character (and attribute) */
 
-STATIC_VAR char buf[BUFSZ];
 extern int attrib_text_normal;	/* text mode normal attribute */
 extern int attrib_gr_normal;	/* graphics mode normal attribute */
 extern int attrib_text_intense;	/* text mode intense attribute */

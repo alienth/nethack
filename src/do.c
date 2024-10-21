@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)do.c	3.3	1999/11/29	*/
+/*	SCCS Id: @(#)do.c	3.3	2001/11/29	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -48,11 +48,15 @@ static NEARDATA const char drop_types[] =
 int
 dodrop()
 {
+#ifndef GOLDOBJ
 	int result, i = (invent || u.ugold) ? 0 : (SIZE(drop_types) - 1);
+#else
+	int result, i = (invent) ? 0 : (SIZE(drop_types) - 1);
+#endif
 
-	if (*u.ushops) sellobj_state(TRUE);
+	if (*u.ushops) sellobj_state(SELL_DELIBERATE);
 	result = drop(getobj(&drop_types[i], "drop"));
-	if (*u.ushops) sellobj_state(FALSE);
+	if (*u.ushops) sellobj_state(SELL_NORMAL);
 	reset_occupations();
 
 	return result;
@@ -210,7 +214,12 @@ void
 doaltarobj(obj)  /* obj is an object dropped on an altar */
 	register struct obj *obj;
 {
-	if (Blind) return;
+#ifndef GOLDOBJ
+	if (Blind)
+#else
+	if (Blind || obj->oclass == GOLD_CLASS)
+#endif
+		return;
 
 	/* KMH, conduct */
 	u.uconduct.gnostic++;
@@ -458,10 +467,14 @@ register struct obj *obj;
 	if (u.uswallow) {
 		/* barrier between you and the floor */
 		if(flags.verbose)
-			You("drop %s into %s %s.", doname(obj),
-				s_suffix(mon_nam(u.ustuck)),
-				is_animal(u.ustuck->data) ?
-				"stomach" : "interior");
+		{
+			char buf[BUFSZ];
+
+			/* doname can call s_suffix, reusing its buffer */
+			strcpy(buf, s_suffix(mon_nam(u.ustuck)));
+			You("drop %s into %s %s.", doname(obj), buf,
+				mbodypart(u.ustuck, STOMACH));
+		}
 	} else {
 #ifdef SINKS
 	    if((obj->oclass == RING_CLASS || obj->otyp == MEAT_RING) &&
@@ -491,8 +504,17 @@ void
 dropx(obj)
 register struct obj *obj;
 {
-	/* Money is usually not in our inventory */
+#ifndef GOLDOBJ
 	if (obj->oclass != GOLD_CLASS || obj == invent) freeinv(obj);
+#else
+        /* Ensure update when we drop gold objects */
+        if (obj->oclass == GOLD_CLASS) flags.botl = 1;
+	/* Money is usually not in our inventory */
+	/*if (obj->oclass != GOLD_CLASS || obj == invent)*/ 
+        /* !!!! make sure we don't drop "created" gold not in inventory any more,*/
+        /* or this will crash !!!! */
+        freeinv(obj);
+#endif
 	if (!u.uswallow && ship_object(obj, u.ux, u.uy, FALSE)) return;
 	dropy(obj);
 }
@@ -502,15 +524,19 @@ dropy(obj)
 register struct obj *obj;
 {
 	if (!u.uswallow && flooreffects(obj,u.ux,u.uy,"drop")) return;
-	/* KMH -- Fixed crysknives have only 10% chance of reverting */
-	if (obj->otyp == CRYSKNIFE && (!obj->oerodeproof || !rn2(10))) {
-		obj->otyp = WORM_TOOTH;
-		obj->oerodeproof = 0;
-	}
 	/* uswallow check done by GAN 01/29/87 */
+	obj_no_longer_held(obj);
 	if(u.uswallow) {
+		boolean could_petrify;
 		if (obj != uball) {		/* mon doesn't pick up ball */
+		    could_petrify = obj->otyp == CORPSE &&
+				    touch_petrifies(&mons[obj->corpsenm]);
 		    (void) mpickobj(u.ustuck,obj);
+		    if (could_petrify && is_animal(u.ustuck->data)) {
+			minstapetrify(u.ustuck, TRUE);
+			/* Don't leave a cockatrice corpse available in a statue */
+			if (!u.uswallow) delobj(obj);
+		    }
 		}
 	} else  {
 		place_object(obj, u.ux, u.uy);
@@ -525,6 +551,28 @@ register struct obj *obj;
 	}
 }
 
+void
+obj_no_longer_held(obj)	/* things that must change when not held; recurse into containers */
+struct obj *obj;
+{
+	if (!obj) {
+		return;
+	} else if ((Is_container(obj) || obj->otyp == STATUE) && obj->cobj) {
+		struct obj *contents;
+		for(contents=obj->cobj; contents; contents=contents->nobj)
+			obj_no_longer_held(contents);
+	}
+	switch(obj->otyp) {
+		case CRYSKNIFE:
+			/* KMH -- Fixed crysknives have only 10% chance of reverting */
+			if (!obj->oerodeproof || !rn2(10)) {
+				obj->otyp = WORM_TOOTH;
+				obj->oerodeproof = 0;
+			}
+			break;
+	}
+}
+
 /* 'D' command: drop several things */
 int
 doddrop()
@@ -532,11 +580,11 @@ doddrop()
 	int result = 0;
 
 	add_valid_menu_class(0); /* clear any classes already there */
-	if (*u.ushops) sellobj_state(TRUE);
+	if (*u.ushops) sellobj_state(SELL_DELIBERATE);
 	if (flags.menu_style != MENU_TRADITIONAL ||
-		(result = ggetobj("drop", drop, 0, FALSE)) < -1)
+		(result = ggetobj("drop", drop, 0, FALSE, (unsigned *)0)) < -1)
 	    result = menu_drop(result);
-	if (*u.ushops) sellobj_state(FALSE);
+	if (*u.ushops) sellobj_state(SELL_NORMAL);
 	reset_occupations();
 
 	return result;
@@ -554,6 +602,7 @@ int retry;
     boolean all_categories = TRUE;
     boolean drop_everything = FALSE;
 
+#ifndef GOLDOBJ
     if (u.ugold) {
 	/* Hack: gold is not in the inventory, so make a gold object
 	   and put it at the head of the inventory list. */
@@ -563,7 +612,7 @@ int retry;
 	u_gold->nobj = invent;
 	invent = u_gold;
     }
-
+#endif
     if (retry) {
 	all_categories = (retry == -2);
     } else if (flags.menu_style == MENU_FULL) {
@@ -583,10 +632,13 @@ int retry;
 	}
 	free((genericptr_t) pick_list);
     } else if (flags.menu_style == MENU_COMBINATION) {
+	unsigned ggoresults = 0;
 	all_categories = FALSE;
 	/* Gather valid classes via traditional NetHack method */
-	i = ggetobj("drop", drop, 0, TRUE);
+	i = ggetobj("drop", drop, 0, TRUE, &ggoresults);
 	if (i == -2) all_categories = TRUE;
+	if (ggoresults & ALL_FINISHED)
+		return i;
     }
 
     if (drop_everything) {
@@ -618,12 +670,15 @@ int retry;
     }
 
  drop_done:
+#ifndef GOLDOBJ
     if (u_gold && invent && invent->oclass == GOLD_CLASS) {
 	/* didn't drop [all of] it */
 	u_gold = invent;
 	invent = u_gold->nobj;
 	dealloc_obj(u_gold);
+	update_inventory();
     }
+#endif
     return n_dropped;
 }
 
@@ -641,6 +696,15 @@ dodown()
 		    (u.ux == sstairs.sx && u.uy == sstairs.sy && !sstairs.up)),
 		ladder_down = (u.ux == xdnladder && u.uy == ydnladder);
 
+#ifdef STEED
+	if (u.usteed && !u.usteed->mcanmove) {
+		pline("%s won't move!", Monnam(u.usteed));
+		return(0);
+	} else if (u.usteed && u.usteed->meating) {
+		pline("%s is still eating.", Monnam(u.usteed));
+		return(0);
+	} else
+#endif
 	if (Levitation) {
 	    if ((HLevitation & I_SPECIAL) || (ELevitation & W_ARTI)) {
 		/* end controlled levitation */
@@ -660,7 +724,9 @@ dodown()
 		}
 	}
 	if(u.ustuck) {
-		You("are being held, and cannot go down.");
+		You("are %s, and cannot go down.",
+			!u.uswallow ? "being held" : is_animal(u.ustuck->data) ?
+			"swallowed" : "engulfed");
 		return(1);
 	}
 	if (on_level(&valley_level, &u.uz) && !u.uevent.gehennom_entered) {
@@ -702,8 +768,19 @@ doup()
 		You_cant("go up here.");
 		return(0);
 	}
+#ifdef STEED
+	if (u.usteed && !u.usteed->mcanmove) {
+		pline("%s won't move!", Monnam(u.usteed));
+		return(0);
+	} else if (u.usteed && u.usteed->meating) {
+		pline("%s is still eating.", Monnam(u.usteed));
+		return(0);
+	} else
+#endif
 	if(u.ustuck) {
-		You("are being held, and cannot go up.");
+		You("are %s, and cannot go up.",
+			!u.uswallow ? "being held" : is_animal(u.ustuck->data) ?
+			"swallowed" : "engulfed");
 		return(1);
 	}
 	if(near_capacity() > SLT_ENCUMBER) {
@@ -1019,7 +1096,10 @@ boolean at_stairs, falling, portal;
 		    }
 		    losehp(rnd(3), "falling downstairs", KILLED_BY);
 #ifdef STEED
-		    if (u.usteed) dismount_steed(DISMOUNT_FELL);
+		    if (u.usteed) {
+			dismount_steed(DISMOUNT_FELL);
+			if (Punished) unplacebc();
+		    }
 #endif
 		    selftouch("Falling, you");
 		} else if (u.dz && at_ladder)
@@ -1127,22 +1207,27 @@ boolean at_stairs, falling, portal;
 	    static const char *fam_msgs[4] = {
 		"You have a sense of deja vu.",
 		"You feel like you've been here before.",
-		"This place looks familiar...",
+		"This place %s familiar...",
 		0	/* no message */
 	    };
 	    static const char *halu_fam_msgs[4] = {
-		"Whoa!  Everything looks different.",
+		"Whoa!  Everything %s different.",
 		"You are surrounded by twisty little passages, all alike.",
-		"Gee, this looks like uncle Conan's place...",
+		"Gee, this %s like uncle Conan's place...",
 		0	/* no message */
 	    };
 	    const char *mesg;
+	    char buf[BUFSZ];
 	    int which = rn2(4);
 
 	    if (Hallucination)
 		mesg = halu_fam_msgs[which];
 	    else
 		mesg = fam_msgs[which];
+	    if (mesg && index(mesg, '%')) {
+		Sprintf(buf, mesg, !Blind ? "looks" : "seems");
+		mesg = buf;
+	    }
 	    if (mesg) pline(mesg);
 	}
 
@@ -1324,12 +1409,22 @@ struct obj *corpse;
     boolean is_uwep, chewed;
     xchar where;
     char *cname, cname_buf[BUFSZ];
-
+    struct obj *container = (struct obj *)0;
+    int container_where = 0;
+    
     where = corpse->where;
     is_uwep = corpse == uwep;
     cname = eos(strcpy(cname_buf, "bite-covered "));
     Strcpy(cname, corpse_xname(corpse, TRUE));
     mcarry = (where == OBJ_MINVENT) ? corpse->ocarry : 0;
+
+    if (where == OBJ_CONTAINED) {
+    	struct monst *mtmp2 = (struct monst *)0;
+	container = corpse->ocontainer;
+    	mtmp2 = get_container_location(container, &container_where, (int *)0);
+	/* container_where is the outermost container's location even if nested */
+	if (container_where == OBJ_MINVENT && mtmp2) mcarry = mtmp2;
+    }
     mtmp = revive(corpse);	/* corpse is gone if successful */
 
     if (mtmp) {
@@ -1359,7 +1454,27 @@ struct obj *corpse;
 			      Adjmonnam(mtmp, "bite-covered") : Monnam(mtmp));
 		}
 		break;
-
+	   case OBJ_CONTAINED:
+	   	if (container_where == OBJ_MINVENT && cansee(mtmp->mx, mtmp->my) &&
+		    mcarry && canseemon(mcarry) && container) {
+		        char sackname[BUFSZ];
+		        Sprintf(sackname, "%s %s", s_suffix(mon_nam(mcarry)),
+				xname(container)); 
+	   		pline("%s writhes out of %s!", Amonnam(mtmp), sackname);
+	   	} else if (container_where == OBJ_INVENT && container) {
+		        char sackname[BUFSZ];
+		        Strcpy(sackname, an(xname(container)));
+	   		pline("%s %s out of %s in your pack!",
+	   			Blind ? Something : Amonnam(mtmp),
+				locomotion(mtmp->data,"writhes"),
+	   			sackname);
+	   	} else if (container_where == OBJ_FLOOR && container &&
+		            cansee(mtmp->mx, mtmp->my)) {
+		        char sackname[BUFSZ];
+		        Strcpy(sackname, an(xname(container)));
+			pline("%s escapes from %s!", Amonnam(mtmp), sackname);
+		}
+		break;
 	    default:
 		/* we should be able to handle the other cases... */
 		impossible("revive_corpse: lost corpse @ %d", where);

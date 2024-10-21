@@ -156,7 +156,7 @@ boolean devour;
 	} else
 	/* hack: observe the action if either new or old location is in view */
 	if (cansee(x, y) || cansee(mtmp->mx, mtmp->my))
-	    pline("%s %s %s.", Monnam(mtmp),
+	    pline("%s %s %s.", noit_Monnam(mtmp),
 		  devour ? "devours" : "eats",
 		  (obj->oclass == FOOD_CLASS) ?
 			singular(obj, doname) : doname(obj));
@@ -182,9 +182,10 @@ boolean devour;
 	    delobj(obj);
 	} else if (obj == uchain)
 	    unpunish();
-	else if (obj->quan > 1L && obj->oclass == FOOD_CLASS)
+	else if (obj->quan > 1L && obj->oclass == FOOD_CLASS) {
 	    obj->quan--;
-	else
+	    obj->owt = weight(obj);
+	} else
 	    delobj(obj);
 
 	if (poly) {
@@ -198,7 +199,7 @@ boolean devour;
 #ifdef STEED
 	    mtmp->misc_worn_check = mw;
 #endif
-	    if (newcham(mtmp, (struct permonst *)0) &&
+	    if (newcham(mtmp, (struct permonst *)0, FALSE) &&
 			cansee(mtmp->mx, mtmp->my)) {
 		uchar save_mnamelth = mtmp->mnamelth;
 		mtmp->mnamelth = 0;
@@ -242,6 +243,7 @@ register struct edog *edog;
 		    beg(mtmp);
 		else
 		    You_feel("worried about %s.", y_monnam(mtmp));
+		stop_occupation();
 	    } else if (monstermoves > edog->hungrytime + 750 || mtmp->mhp < 1) {
 	    dog_died:
 		if (mtmp->mleashed)
@@ -279,7 +281,11 @@ int udist;
 	/* if we are carrying sth then we drop it (perhaps near @) */
 	/* Note: if apport == 1 then our behaviour is independent of udist */
 	/* Use udist+1 so steed won't cause divide by zero */
+#ifndef GOLDOBJ
 	if(DROPPABLES(mtmp) || mtmp->mgold) {
+#else
+	if(DROPPABLES(mtmp)) {
+#endif
 	    if (!rn2(udist+1) || !rn2(edog->apport))
 		if(rn2(10) < edog->apport){
 		    relobj(mtmp, (int)mtmp->minvis, TRUE);
@@ -556,6 +562,11 @@ register int after;	/* this is extra fast monster movement */
 
 	    }
 	}
+	if (!Conflict && !mtmp->mconf &&
+	    mtmp == u.ustuck && !sticks(youmonst.data)) {
+	    unstuck(mtmp);	/* swallowed case handled above */
+	    You("get released!");
+	}
 	if (!nohands(mtmp->data) && !verysmall(mtmp->data)) {
 		allowflags |= OPENDOOR;
 		if (m_carrying(mtmp, SKELETON_KEY)) allowflags |= BUSTDOOR;
@@ -702,7 +713,7 @@ newdogpos:
 		if (info[chi] & ALLOW_U) {
 			if (mtmp->mleashed) { /* play it safe */
 				pline("%s breaks loose of %s leash!",
-				      Monnam(mtmp), his[pronoun_gender(mtmp)]);
+				      Monnam(mtmp), mhis(mtmp));
 				m_unleash(mtmp);
 			}
 			(void) mattacku(mtmp);

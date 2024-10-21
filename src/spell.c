@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)spell.c	3.3	2000/01/10	*/
+/*	SCCS Id: @(#)spell.c	3.3	2001/12/03	*/
 /*	Copyright (c) M. Stephenson 1988			  */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -20,17 +20,17 @@ static NEARDATA struct obj *book;	/* last/current book being xscribed */
 #define spellet(spell)	\
 	((char)((spell < 26) ? ('a' + spell) : ('A' + spell - 26)))
 
-static int FDECL(spell_let_to_idx, (CHAR_P));
-static void FDECL(cursed_book, (int));
-static void FDECL(deadbook, (struct obj *));
+STATIC_DCL int FDECL(spell_let_to_idx, (CHAR_P));
+STATIC_DCL void FDECL(cursed_book, (int));
+STATIC_DCL void FDECL(deadbook, (struct obj *));
 STATIC_PTR int NDECL(learn);
-static boolean FDECL(getspell, (int *));
-static boolean FDECL(dospellmenu, (const char *,int,int *));
-static int FDECL(percent_success, (int));
-static int NDECL(throwspell);
-static void NDECL(cast_protection);
-static const char *FDECL(spelltypemnemonic, (int));
-static int FDECL(isqrt, (int));
+STATIC_DCL boolean FDECL(getspell, (int *));
+STATIC_DCL boolean FDECL(dospellmenu, (const char *,int,int *));
+STATIC_DCL int FDECL(percent_success, (int));
+STATIC_DCL int NDECL(throwspell);
+STATIC_DCL void NDECL(cast_protection);
+STATIC_DCL const char *FDECL(spelltypemnemonic, (int));
+STATIC_DCL int FDECL(isqrt, (int));
 
 /* The roles[] table lists the role-specific values for tuning
  * percent_success().
@@ -53,7 +53,7 @@ static int FDECL(isqrt, (int));
  *
  *	The arms penalty is lessened for trained fighters Bar, Kni, Ran,
  *	Sam, Val -
- *	the penalty is its metal interference, not encumberance.
+ *	the penalty is its metal interference, not encumbrance.
  *	The `spelspec' is a single spell which is fundamentally easier
  *	 for that role to cast.
  *
@@ -89,7 +89,7 @@ static int FDECL(isqrt, (int));
 static const char explodes[] = "radiates explosive energy";
 
 /* convert a letter into a number in the range 0..51, or -1 if not a letter */
-static int
+STATIC_OVL int
 spell_let_to_idx(ilet)
 char ilet;
 {
@@ -102,7 +102,7 @@ char ilet;
     return -1;
 }
 
-static void
+STATIC_OVL void
 cursed_book(lev)
 	register int	lev;
 {
@@ -131,10 +131,15 @@ cursed_book(lev)
 		    if (uarmg->oerodeproof || !is_corrodeable(uarmg)) {
 			Your("gloves seem unaffected.");
 		    } else if (uarmg->oeroded2 < MAX_ERODE) {
-			Your("gloves corrode%s!",
-			     uarmg->oeroded2+1 == MAX_ERODE ? " completely" :
-			     uarmg->oeroded2 ? " further" : "");
-			uarmg->oeroded2++;
+			if (uarmg->greased) {
+			    grease_protect(uarmg, "gloves", TRUE, &youmonst);
+			} else {
+			    Your("gloves corrode%s!",
+				 uarmg->oeroded2+1 == MAX_ERODE ?
+				 " completely" : uarmg->oeroded2 ?
+				 " further" : "");
+			    uarmg->oeroded2++;
+			}
 		    } else
 			Your("gloves %s completely corroded.",
 			     Blind ? "feel" : "look");
@@ -162,7 +167,7 @@ cursed_book(lev)
 }
 
 /* special effects for The Book of the Dead */
-static void
+STATIC_OVL void
 deadbook(book2)
 struct obj *book2;
 {
@@ -236,9 +241,12 @@ raise_dead:
 	mm.y = u.uy;
 	mkundead(&mm, TRUE, NO_MINVENT);
     } else if(book2->blessed) {
+	/* the Book operates on nearby monsters even if you're swallowed */
 	for(mtmp = fmon; mtmp; mtmp = mtmp2) {
 	    mtmp2 = mtmp->nmon;		/* tamedog() changes chain */
-	    if(!DEADMONSTER(mtmp) && is_undead(mtmp->data) && cansee(mtmp->mx, mtmp->my)) {
+	    if (DEADMONSTER(mtmp)) continue;
+
+	    if (is_undead(mtmp->data) && cansee(mtmp->mx, mtmp->my)) {
 		mtmp->mpeaceful = TRUE;
 		if(sgn(mtmp->data->maligntyp) == sgn(u.ualign.type)
 		   && distu(mtmp->mx, mtmp->my) < 4)
@@ -247,7 +255,7 @@ raise_dead:
 			    mtmp->mtame++;
 		    } else
 			(void) tamedog(mtmp, (struct obj *)0);
-		else mtmp->mflee = TRUE;
+		else monflee(mtmp, 0, FALSE, TRUE);
 	    }
 	}
     } else {
@@ -473,7 +481,7 @@ age_spells()
  * Return TRUE if a spell was picked, with the spell index in the return
  * parameter.  Otherwise return FALSE.
  */
-static boolean
+STATIC_OVL boolean
 getspell(spell_no)
 	int *spell_no;
 {
@@ -526,7 +534,7 @@ docast()
 	return 0;
 }
 
-static const char *
+STATIC_OVL const char *
 spelltypemnemonic(skill)
 int skill;
 {
@@ -558,7 +566,7 @@ int booktype;
 	return (objects[booktype].oc_skill);
 }
 
-static void
+STATIC_OVL void
 cast_protection()
 {
 	int loglev = 0;
@@ -742,15 +750,17 @@ boolean atme;
 		    n=rnd(8)+1;
 		    while(n--) {
 			if(!u.dx && !u.dy && !u.dz) {
-			    if ((damage = zapyourself(pseudo, TRUE)) != 0)
-				losehp(damage,
-				     self_pronoun("zapped %sself with a spell",
-						"him"),
-				       NO_KILLER_PREFIX);
+			    if ((damage = zapyourself(pseudo, TRUE)) != 0) {
+				char buf[BUFSZ];
+				Sprintf(buf, "zapped %sself with a spell", uhim());
+				losehp(damage, buf, NO_KILLER_PREFIX);
+			    }
 			} else {
 			    explode(u.dx, u.dy,
 				    pseudo->otyp - SPE_MAGIC_MISSILE + 10,
-				    u.ulevel/2 + 1 + spell_damage_bonus(), 0);
+				    u.ulevel/2 + 1 + spell_damage_bonus(), 0,
+					(pseudo->otyp == SPE_CONE_OF_COLD) ?
+						EXPL_FROSTY : EXPL_FIERY);
 			}
 			u.dx = cc.x+rnd(3)-2; u.dy = cc.y+rnd(3)-2;
 			if (!isok(u.dx,u.dy) || !cansee(u.dx,u.dy) ||
@@ -787,13 +797,14 @@ boolean atme;
 			if (atme) u.dx = u.dy = u.dz = 0;
 			else (void) getdir((char *)0);
 			if(!u.dx && !u.dy && !u.dz) {
-			    if ((damage = zapyourself(pseudo, TRUE)) != 0)
-				losehp(damage,
-				     self_pronoun("zapped %sself with a spell",
-						  "him"),
-				     NO_KILLER_PREFIX);
+			    if ((damage = zapyourself(pseudo, TRUE)) != 0) {
+				char buf[BUFSZ];
+				Sprintf(buf, "zapped %sself with a spell", uhim());
+				losehp(damage, buf, NO_KILLER_PREFIX);
+			    }
 			} else weffects(pseudo);
 		} else weffects(pseudo);
+		update_inventory();	/* spell may modify inventory */
 		break;
 
 	/* these are all duplicates of scroll effects */
@@ -832,6 +843,7 @@ boolean atme;
 		if (Slimed) {
 		    pline_The("slime disappears!");
 		    Slimed = 0;
+		 /* flags.botl = 1; -- healup() handles this */
 		}
 		healup(0, 0, TRUE, FALSE);
 		break;
@@ -868,7 +880,7 @@ boolean atme;
 }
 
 /* Choose location where spell takes effect. */
-static int
+STATIC_OVL int
 throwspell()
 {
 	coord cc;
@@ -948,7 +960,7 @@ dovspell()
 	return 0;
 }
 
-static boolean
+STATIC_OVL boolean
 dospellmenu(prompt, splaction, spell_no)
 const char *prompt;
 int splaction;	/* SPELLMENU_CAST, SPELLMENU_VIEW, or spl_book[] index */
@@ -1015,7 +1027,7 @@ int *spell_no;
 }
 
 /* Integer square root function without using floating point. */
-static int
+STATIC_OVL int
 isqrt(val)
 int val;
 {
@@ -1029,7 +1041,7 @@ int val;
     return rt;
 }
 
-static int
+STATIC_OVL int
 percent_success(spell)
 int spell;
 {
@@ -1084,7 +1096,8 @@ int spell;
 	 * The difficulty is based on the hero's level and their skill level
 	 * in that spell type.
 	 */
-	skill = P_SKILL(spell_skilltype(spellid(spell)))-1;
+	skill = P_SKILL(spell_skilltype(spellid(spell)));
+	skill = max(skill,P_UNSKILLED) - 1;	/* unskilled => 0 */
 	difficulty= (spellev(spell)-1) * 4 - ((skill * 6) + (u.ulevel/3) + 1);
 
 	if (difficulty > 0) {
@@ -1122,8 +1135,8 @@ int spell;
 
 	/* Finally, chance (based on player intell/wisdom and level) is
 	 * combined with ability (based on player intrinsics and
-	 * encumberances).  No matter how intelligent/wise and advanced
-	 * a player is, intrinsics and encumberance can prevent casting;
+	 * encumbrances).  No matter how intelligent/wise and advanced
+	 * a player is, intrinsics and encumbrance can prevent casting;
 	 * and no matter how able, learning is always required.
 	 */
 	chance = chance * (20-splcaster) / 15 - splcaster;

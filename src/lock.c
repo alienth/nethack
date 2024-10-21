@@ -103,7 +103,7 @@ picklock()	/* try to open/close a lock */
 	    return((xlock.usedtime = 0));
 	}
 
-	if(rn2(100) > xlock.chance) return(1);		/* still busy */
+	if(rn2(100) >= xlock.chance) return(1);		/* still busy */
 
 	You("succeed in %s.", lock_action());
 	if (xlock.door) {
@@ -160,7 +160,7 @@ forcelock()	/* try to force a locked chest */
 	} else			/* blunt */
 	    wake_nearby();	/* due to hammering on the container */
 
-	if(rn2(100) > xlock.chance) return(1);		/* still busy */
+	if(rn2(100) >= xlock.chance) return(1);		/* still busy */
 
 	You("succeed in forcing the lock.");
 	xlock.box->olocked = 0;
@@ -877,8 +877,9 @@ struct obj *otmp;
 	long save_Blinded;
 
 	if (otmp->oclass == POTION_CLASS) {
-		You("%s a flask shatter!", Blind ? "hear" : "see");
-		potionbreathe(otmp);
+		You("%s a %s shatter!", Blind ? "hear" : "see", bottlename());
+		if (!breathless(youmonst.data) || haseyes(youmonst.data))
+			potionbreathe(otmp);
 		return;
 	}
 	/* We have functions for distant and singular names, but not one */

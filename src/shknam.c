@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)shknam.c	3.3	97/05/25	*/
+/*	SCCS Id: @(#)shknam.c	3.3	2001/09/06	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -246,21 +246,25 @@ mkshobj_at(shp, sx, sy)
 const struct shclass *shp;
 int sx, sy;
 {
-	register struct monst *mtmp;
+	struct monst *mtmp;
 	int atype;
 	struct permonst *ptr;
 
 	if (rn2(100) < depth(&u.uz) &&
-	    !MON_AT(sx, sy) && (ptr = mkclass(S_MIMIC,0)) &&
-	    (mtmp=makemon(ptr,sx,sy,NO_MM_FLAGS))) {
-		/* note: makemon will set the mimic symbol to a shop item */
-		if (rn2(10) >= depth(&u.uz)) {
-			mtmp->m_ap_type = M_AP_OBJECT;
-			mtmp->mappearance = STRANGE_OBJECT;
-		}
-	} else if ((atype = get_shop_item(shp - shtypes)) < 0)
-		(void) mksobj_at(-atype, sx, sy, TRUE);
-	else (void) mkobj_at(atype, sx, sy, TRUE);
+		!MON_AT(sx, sy) && (ptr = mkclass(S_MIMIC,0)) &&
+		(mtmp = makemon(ptr,sx,sy,NO_MM_FLAGS)) != 0) {
+	    /* note: makemon will set the mimic symbol to a shop item */
+	    if (rn2(10) >= depth(&u.uz)) {
+		mtmp->m_ap_type = M_AP_OBJECT;
+		mtmp->mappearance = STRANGE_OBJECT;
+	    }
+	} else {
+	    atype = get_shop_item(shp - shtypes);
+	    if (atype < 0)
+		(void) mksobj_at(-atype, sx, sy, TRUE, TRUE);
+	    else
+		(void) mkobj_at(atype, sx, sy, TRUE);
+	}
 }
 
 /* extract a shopkeeper name for the given shop type */
@@ -402,7 +406,11 @@ struct mkroom	*sroom;
 	ESHK(shk)->visitct = 0;
 	ESHK(shk)->following = 0;
 	ESHK(shk)->billct = 0;
+#ifndef GOLDOBJ
 	shk->mgold = 1000L + 30L*(long)rnd(100);	/* initial capital */
+#else
+        mkmonmoney(shk, 1000L + 30L*(long)rnd(100));	/* initial capital */
+#endif
 	nameshk(shk, shp->shknms);
 
 	return(sh);

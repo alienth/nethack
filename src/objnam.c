@@ -1,4 +1,4 @@
-/*	SCCS Id: @(#)objnam.c	3.3	2000/07/23	*/
+/*	SCCS Id: @(#)objnam.c	3.3	2001/10/29	*/
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* NetHack may be freely redistributed.  See license for details. */
 
@@ -144,8 +144,12 @@ register int otyp;
 		return(buf);
 	}
 	/* here for ring/scroll/potion/wand */
-	if(nn)
+	if(nn) {
+	    if (ocl->oc_unique)
+		Strcpy(buf, actualn); /* avoid spellbook of Book of the Dead */
+	    else
 		Sprintf(eos(buf), " of %s", actualn);
+	}
 	if(un)
 		Sprintf(eos(buf), " called %s", un);
 	if(dn)
@@ -224,6 +228,14 @@ register struct obj *obj;
 		actualn = Japanese_item_name(typ);
 
 	buf[0] = '\0';
+	/*
+	 * clean up known when it's tied to oc_name_known, eg after AD_DRIN
+	 * This is only required for unique objects and the Fake AoY since the
+	 * article printed for the object is tied to the combination of the two
+	 * and printing the wrong article gives away information.
+	 */
+	if (!nn && ocl->oc_uses_known &&
+	    (ocl->oc_unique || typ == FAKE_AMULET_OF_YENDOR)) obj->known = 0;
 	if (!Blind) obj->dknown = TRUE;
 	if (Role_if(PM_PRIEST)) obj->bknown = TRUE;
 	if (obj_is_pname(obj))
@@ -449,6 +461,25 @@ nameit:
 
 	if (!strncmpi(buf, "the ", 4)) buf += 4;
 	return(buf);
+}
+
+/* xname() output augmented for multishot missile feedback */
+char *
+mshot_xname(obj)
+struct obj *obj;
+{
+    char tmpbuf[BUFSZ];
+    char *onm = xname(obj);
+
+    if (m_shot.n > 1 && m_shot.o == obj->otyp) {
+	/* copy xname's result so that we can reuse its return buffer */
+	Strcpy(tmpbuf, onm);
+	/* "the Nth arrow"; value will eventually be passed to an() or
+	   The(), both of which correctly handle this "the " prefix */
+	Sprintf(onm, "the %d%s %s", m_shot.i, ordin(m_shot.i), tmpbuf);
+    }
+
+    return onm;
 }
 
 #endif /* OVL1 */
@@ -1065,6 +1096,7 @@ const char *oldstr;
 			!strcmp(spot-4, "ninja") ||
 			!strcmp(spot-4, "ronin") ||
 			!strcmp(spot-4, "shito") ||
+			!strcmp(spot-7, "shuriken") ||
 			!strcmp(spot-4, "tengu") ||
 			!strcmp(spot-4, "manes"))) ||
 	    (len >= 6 && !strcmp(spot-5, "ki-rin")) ||
@@ -1442,13 +1474,17 @@ struct alt_spellings {
 	{ (const char *)0, 0 },
 };
 
-/* Return something wished for.  If not an object, return &zeroobj; if an error
- * (no matching object), return (struct obj *)0.  Giving readobjnam() a null
- * pointer skips the error return and creates a random object instead.
+/*
+ * Return something wished for.  Specifying a null pointer for
+ * the user request string results in a random object.  Otherwise,
+ * if asking explicitly for "nothing" (or "nil") return no_wish;
+ * if not an object return &zeroobj; if an error (no matching object),
+ * return null.
  */
 struct obj *
-readobjnam(bp)
+readobjnam(bp, no_wish)
 register char *bp;
+struct obj *no_wish;
 {
 	register char *p;
 	register int i;
@@ -1501,6 +1537,10 @@ register char *bp;
 	if (!bp) goto any;
 	/* first, remove extra whitespace they may have typed */
 	(void)mungspaces(bp);
+	/* allow wishing for "nothing" to preserve wishless conduct...
+	   [now requires "wand of nothing" if that's what was really wanted] */
+	if (!strcmpi(bp, "nothing") || !strcmpi(bp, "nil")) return no_wish;
+	/* save the [nearly] unmodified choice string */
 	Strcpy(fruitbuf, bp);
 
 	for(;;) {
@@ -1712,7 +1752,7 @@ register char *bp;
 		int mntmptoo, mntmplen;	/* double check for rank title */
 		char *obp = bp;
 		mntmptoo = title_to_mon(bp, (int *)0, &mntmplen);
-		bp += mntmp != mntmptoo ? strlen(mons[mntmp].mname) : mntmplen;
+		bp += mntmp != mntmptoo ? (int)strlen(mons[mntmp].mname) : mntmplen;
 		if (*bp == ' ') bp++;
 		else if (!strncmpi(bp, "s ", 2)) bp += 2;
 		else if (!strncmpi(bp, "es ", 3)) bp += 3;
@@ -1784,10 +1824,18 @@ register char *bp;
 #endif
 						) cnt=5000;
 		if (cnt < 1) cnt=1;
+#ifndef GOLDOBJ
 		pline("%d gold piece%s.", cnt, plur(cnt));
 		u.ugold += cnt;
 		flags.botl=1;
 		return (&zeroobj);
+#else
+                otmp = mksobj(GOLD_PIECE, FALSE, FALSE);
+		otmp->quan = cnt;
+                otmp->owt = weight(otmp);
+		flags.botl=1;
+		return (otmp);
+#endif
 	}
 	if (strlen(bp) == 1 &&
 	   (i = def_char_to_objclass(*bp)) < MAXOCLASSES && i > ILLOBJ_CLASS
@@ -2075,6 +2123,7 @@ srch:
 		    levl[u.ux][u.uy].typ = TREE;
 		    pline("A tree.");
 		    newsym(u.ux, u.uy);
+		    block_point(u.ux, u.uy);
 		    return &zeroobj;
 		}
 
@@ -2101,7 +2150,7 @@ typfnd:
 #endif
 	    switch (typ) {
 		case AMULET_OF_YENDOR:
-			typ = FAKE_AMULET_OF_YENDOR;
+		    typ = FAKE_AMULET_OF_YENDOR;
 		    break;
 		case CANDELABRUM_OF_INVOCATION:
 		    typ = rnd_class(TALLOW_CANDLE, WAX_CANDLE);
@@ -2215,7 +2264,10 @@ typfnd:
 	}
 
 	/* set otmp->corpsenm or dragon scale [mail] */
-	if (mntmp >= LOW_PM) switch(typ) {
+	if (mntmp >= LOW_PM) {
+		if (mntmp == PM_LONG_WORM_TAIL) mntmp = PM_LONG_WORM;
+
+		switch (typ) {
 		case TIN:
 			otmp->spe = 0; /* No spinach */
 			if (dead_species(mntmp, FALSE)) {
@@ -2268,6 +2320,7 @@ typfnd:
 			    otmp->otyp = GRAY_DRAGON_SCALE_MAIL +
 						    mntmp - PM_GRAY_DRAGON;
 			break;
+		}
 	}
 
 	/* set blessed/cursed -- setting the fields directly is safe
@@ -2423,6 +2476,27 @@ int i;
 	}
 	return (const char *)0;
 }
+
+const char *
+cloak_simple_name(cloak)
+struct obj *cloak;
+{
+    if (cloak) {
+	switch (cloak->otyp) {
+	case ROBE:
+	    return "robe";
+	case MUMMY_WRAPPING:
+	    return "wrapping";
+	case ALCHEMY_SMOCK:
+	    return (objects[cloak->otyp].oc_name_known &&
+			cloak->dknown) ? "smock" : "apron";
+	default:
+	    break;
+	}
+    }
+    return "cloak";
+}
+
 #endif /* OVLB */
 
 /*objnam.c*/

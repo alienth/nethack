@@ -973,7 +973,12 @@ void gnome_outrip(winid wid, int how)
     Strcat(ripString, buf);
     
     /* Put $ on stone */
-    Sprintf(buf, "%ld Au\n", u.ugold);
+    Sprintf(buf, "%ld Au\n",
+#ifndef GOLDOBJ
+		u.ugold);
+#else
+		money_cnt(invent));
+#endif
     Strcat(ripString, buf);
 
     /* Put together death description */

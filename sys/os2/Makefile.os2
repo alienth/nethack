@@ -638,7 +638,7 @@ VOBJ07 = $(OBJ)\eat.o      $(OBJ)\end.o      $(OBJ)\engrave.o  $(OBJ)\exper.o
 VOBJ08 = $(OBJ)\explode.o  $(OBJ)\extralev.o $(OBJ)\files.o    $(OBJ)\fountain.o
 VOBJ09 = $(OBJ)\hack.o     $(OBJ)\hacklib.o  $(OBJ)\invent.o   $(OBJ)\light.o
 VOBJ10 = $(OBJ)\lock.o     $(OBJ)\mail.o     $(OBJ)\main.o     $(OBJ)\makemon.o
-VOBJ11 = $(OBJ)\mcastu.o   $(OBJ)\mhitm.o    $(OBJ)\mhitu.o    $(OBJ)\minion.o
+VOBJ11 = $(OBJ)\mapglyph.o $(OBJ)\mcastu.o   $(OBJ)\mhitm.o    $(OBJ)\mhitu.o $(OBJ)\minion.o
 VOBJ12 = $(OBJ)\mklev.o    $(OBJ)\mkmap.o    $(OBJ)\mkmaze.o   $(OBJ)\mkobj.o
 VOBJ13 = $(OBJ)\mkroom.o   $(OBJ)\mon.o      $(OBJ)\mondata.o  $(OBJ)\monmove.o
 VOBJ14 = $(OBJ)\monst.o    $(OBJ)\monstr.o   $(OBJ)\mplayer.o  $(OBJ)\mthrowu.o
@@ -1398,6 +1398,8 @@ $(OBJ)\lock.o     : $(SRC)\$(CB) $(HACK_H)
 $(OBJ)\mail.o     : $(SRC)\$(CB) $(HACK_H) $(INCL)\mail.h
 	$(SRCCC)
 $(OBJ)\makemon.o  : $(SRC)\$(CB) $(HACK_H) $(INCL)\epri.h $(INCL)\emin.h
+	$(SRCCC)
+$(OBJ)\mapglyph.o : $(SRC)\$(CB) $(HACK_H)
 	$(SRCCC)
 $(OBJ)\mcastu.o   : $(SRC)\$(CB) $(HACK_H)
 	$(SRCCC)
